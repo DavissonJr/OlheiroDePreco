@@ -9,7 +9,7 @@ const tem = (...nomes: string[]) => nomes.every((n) => !!process.env[n]);
 
 export async function GET() {
   const servicos = {
-    supabase: tem("NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"),
+    supabase: tem("NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY"),
     endereco_do_site: tem("NEXT_PUBLIC_SITE_URL") && !process.env.NEXT_PUBLIC_SITE_URL!.includes("localhost"),
     mercado_livre: tem("ML_APP_ID", "ML_APP_SECRET", "ML_REDIRECT_URI"),
     agendador: tem("CRON_SECRET"),

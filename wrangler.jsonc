@@ -1,0 +1,27 @@
+{
+  // Configuração do Worker na Cloudflare (gerada pro OpenNext).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "olheiro-de-preco",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": [
+    // Libera as APIs do Node.js que o Next.js usa
+    "nodejs_compat",
+    // Permite chamar APIs externas (Mercado Livre, Supabase, Telegram...)
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "olheiro-de-preco"
+    }
+  ],
+  // Logs das requisições no painel da Cloudflare (Workers > olheiro-de-preco > Logs)
+  "observability": {
+    "enabled": true
+  }
+}

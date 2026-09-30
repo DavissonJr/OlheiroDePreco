@@ -25,8 +25,10 @@ interface Linha {
   };
 }
 
-const LOTE = 150;
-// Para antes do limite de tempo da função (60 s no plano gratuito da Vercel).
+// Quantos concorrentes conferir por rodada. No plano gratuito da Cloudflare cada
+// chamada pode fazer só 50 requisições externas, então lá use CONFERENCIA_LOTE=10.
+const LOTE = Number(process.env.CONFERENCIA_LOTE) || 150;
+// Para antes de o agendador desistir de esperar a resposta (60 s).
 const ORCAMENTO_MS = 50_000;
 
 export async function verificarPrecos() {

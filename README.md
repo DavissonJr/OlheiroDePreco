@@ -20,6 +20,17 @@ Abra http://localhost:3000. Sem nenhuma variável configurada, o app roda em
 Pra ver no celular na mesma rede Wi‑Fi: `npm run dev -- -H 0.0.0.0` e abra
 `http://IP-DO-SEU-PC:3000` no navegador do celular.
 
+Pra testar no mesmo motor que roda na Cloudflare (mais lento pra iniciar,
+use antes de subir mudanças grandes): `cp .dev.vars.example .dev.vars` uma vez
+e depois `npm run preview`. No Windows, rode esse comando dentro do WSL.
+
+## Hospedagem
+
+O site roda na **Cloudflare Workers** com o adaptador OpenNext, e o banco no
+**Supabase**. Os arquivos da Cloudflare são `wrangler.jsonc`,
+`open-next.config.ts` e `public/_headers`. O passo a passo completo está no
+[DEPLOY.md](./DEPLOY.md).
+
 ## Demonstração pública
 
 Mesmo com o site em produção, qualquer visitante pode abrir `/demo` e navegar
@@ -57,6 +68,8 @@ supabase/
   agendador.sql               rotinas agendadas (rodar depois de publicar)
   emails/                     modelos de e-mail em português
 scripts/testar-ml.mjs         teste da API de preços do Mercado Livre
+wrangler.jsonc                configuração do Worker na Cloudflare
+open-next.config.ts           configuração do adaptador OpenNext
 ```
 
 ## Personalizar
