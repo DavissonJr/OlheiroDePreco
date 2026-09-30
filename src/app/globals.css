@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/figtree";
+
+/* Tokens: tinta azul-marinho, papel frio, cobalto pra ações,
+   amarelo-etiqueta pra preços de concorrentes, vermelho pra quedas. */
+:root {
+  --bg: #eef1f7;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --ink: #131b33;
+  --muted: #5b6480;
+  --line: #dce1ec;
+  --cobalt: #2448f0;
+  --cobalt-soft: #e4e9ff;
+  --tag: #ffc83d;
+  --tag-ink: #3a2a00;
+  --tag-line: #c28a00;
+  --drop: #d93b39;
+  --drop-soft: #fde8e7;
+  --up: #0f8a61;
+  --up-soft: #dff5ec;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1122;
+    --surface: #121a30;
+    --surface-2: #18213b;
+    --ink: #e7ebf5;
+    --muted: #97a1bd;
+    --line: #26314f;
+    --cobalt: #6b86ff;
+    --cobalt-soft: #1c2754;
+    --tag: #ffc83d;
+    --tag-ink: #3a2a00;
+    --tag-line: #ffc83d;
+    --drop: #ff6d68;
+    --drop-soft: #3a1b22;
+    --up: #3ccb93;
+    --up-soft: #12332b;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-tag: var(--tag);
+  --color-tag-ink: var(--tag-ink);
+  --color-drop: var(--drop);
+  --color-drop-soft: var(--drop-soft);
+  --color-up: var(--up);
+  --color-up-soft: var(--up-soft);
+  --font-display: "Bricolage Grotesque Variable", "Figtree Variable", system-ui, sans-serif;
+  --font-sans: "Figtree Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 88;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+:focus-visible {
+  outline: 2.5px solid var(--cobalt);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--tag);
+  color: var(--tag-ink);
+}
+
+/* Etiqueta de preço: ponta à esquerda e um furinho de barbante.
+   É o elemento-assinatura da interface. */
+.price-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.32em 0.8em 0.32em 1.35em;
+  clip-path: polygon(0.8em 0, 100% 0, 100% 100%, 0.8em 100%, 0 50%);
+  -webkit-mask: radial-gradient(circle 0.19em at 0.72em 50%, transparent 96%, #000 100%);
+  mask: radial-gradient(circle 0.19em at 0.72em 50%, transparent 96%, #000 100%);
+  border-radius: 0 0.45em 0.45em 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.price-tag[data-tone="rival"] { background: var(--tag); color: var(--tag-ink); }
+.price-tag[data-tone="mine"] { background: var(--cobalt); color: #fff; }
+.price-tag[data-tone="drop"] { background: var(--drop); color: #fff; }
+.price-tag[data-tone="quiet"] { background: var(--surface-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Barra de rolagem discreta */
+.scroll-quiet { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+
+/* Espaço pra barra inferior no celular + área segura */
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem); }
+@media (min-width: 1024px) { .safe-bottom { padding-bottom: 3rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

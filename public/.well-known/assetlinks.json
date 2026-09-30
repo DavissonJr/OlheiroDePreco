@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.seudominio.radar",
+      "sha256_cert_fingerprints": ["COLE_AQUI_A_IMPRESSAO_DIGITAL_SHA256_DA_SUA_CHAVE"]
+    }
+  }
+]
