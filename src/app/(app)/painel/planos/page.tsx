@@ -12,10 +12,14 @@ import { Esqueleto } from "@/components/ui/esqueleto";
 import { useAviso } from "@/components/ui/aviso";
 import { PLANOS } from "@/lib/planos";
 
+const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+
 export default function Planos() {
   const avisar = useAviso();
-  const { carregando, perfil, assinarPro, cancelarProDemo, recarregar, demo } = useDados();
+  const { carregando, perfil, assinarPro, cancelarAssinatura, recarregar, demo } = useDados();
   const [assinando, setAssinando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [confirmarCancelamento, setConfirmarCancelamento] = useState(false);
   const [voltouDoPagamento, setVoltouDoPagamento] = useState(false);
 
   useEffect(() => {
@@ -29,6 +33,7 @@ export default function Planos() {
 
   if (carregando || !perfil) return <Esqueleto className="h-[480px] rounded-[26px]" />;
   const pro = perfil.plano === "pro";
+  const cancelado = pro && !perfil.assinatura_ativa && !demo;
 
   async function assinar() {
     setAssinando(true);
@@ -36,6 +41,16 @@ export default function Planos() {
     setAssinando(false);
     if (!r.ok) avisar(r.erro, "erro");
     else if (demo) avisar("Pronto, você está no Pro.");
+  }
+
+  async function cancelar() {
+    if (!confirmarCancelamento) return setConfirmarCancelamento(true);
+    setCancelando(true);
+    const r = await cancelarAssinatura();
+    setCancelando(false);
+    setConfirmarCancelamento(false);
+    if (!r.ok) return avisar(r.erro, "erro");
+    avisar(r.ate ? `Assinatura cancelada. Você continua no Pro até ${dia(r.ate)}.` : "Assinatura cancelada.");
   }
 
   return (
@@ -56,11 +71,7 @@ export default function Planos() {
           const atual = perfil.plano === id;
           const ehPro = id === "pro";
           return (
-            <motion.section
-              key={id}
-              layout
-              className={clsx("relative rounded-[26px] bg-surface p-7 sm:p-8", atual ? "ring-2 ring-cobalt" : "ring-1 ring-line")}
-            >
+            <motion.section key={id} layout className={clsx("relative rounded-[26px] bg-surface p-7 sm:p-8", atual ? "ring-2 ring-cobalt" : "ring-1 ring-line")}>
               <AnimatePresence>
                 {atual && (
                   <motion.span
@@ -87,29 +98,37 @@ export default function Planos() {
                   </li>
                 ))}
               </ul>
+
               {ehPro && !pro && (
                 <>
                   <Botao tamanho="lg" className="mt-8 w-full" carregando={assinando} icone={<Sparkles className="size-5" aria-hidden />} onClick={assinar}>
                     Assinar o Pro
                   </Botao>
-                  <p className="mt-3 text-center text-sm text-muted">Pagamento pelo Mercado Pago. Cancele quando quiser.</p>
+                  <p className="mt-3 text-center text-sm text-muted">Pagamento pelo Mercado Pago. Cancele quando quiser, sem multa.</p>
                 </>
               )}
-              {ehPro && pro && (
-                <p className="mt-8 rounded-xl bg-up-soft px-4 py-3 text-[15px] text-up">
-                  Assinatura ativa. Pra cancelar, acesse Assinaturas no app do Mercado Pago.
+
+              {ehPro && pro && !cancelado && (
+                <div className="mt-8 space-y-3">
+                  <p className="rounded-xl bg-up-soft px-4 py-3 text-[15px] text-up">
+                    Assinatura ativa{perfil.pro_ate ? `. Próxima cobrança em ${dia(perfil.pro_ate)}.` : "."}
+                  </p>
+                  <Botao variante="fantasma" className="w-full text-muted" carregando={cancelando} onClick={cancelar}>
+                    {confirmarCancelamento ? "Toque de novo pra cancelar a assinatura" : "Cancelar assinatura"}
+                  </Botao>
+                </div>
+              )}
+
+              {ehPro && cancelado && (
+                <p className="mt-8 rounded-xl bg-tag/25 px-4 py-3 text-[15px]">
+                  Assinatura cancelada. Você continua no Pro{perfil.pro_ate ? ` até ${dia(perfil.pro_ate)}` : " até o fim do período pago"}.
+                  Pra voltar, é só assinar de novo depois dessa data.
                 </p>
               )}
             </motion.section>
           );
         })}
       </div>
-
-      {demo && pro && (
-        <Botao variante="fantasma" className="mt-6" onClick={cancelarProDemo}>
-          Voltar pro Grátis (só na demonstração)
-        </Botao>
-      )}
     </>
   );
 }

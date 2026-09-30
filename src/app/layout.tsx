@@ -1,15 +1,29 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
+const descricao =
+  "Veja quanto você vendeu no Mercado Livre e receba um aviso no Telegram quando um concorrente baixar o preço.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Radar: vendas e preços dos concorrentes no Mercado Livre",
-    template: "%s · Radar",
+    default: "Olheiro de Preço: saiba na hora quando o concorrente baixar o preço",
+    template: "%s | Olheiro de Preço",
   },
-  description:
-    "Veja quanto você vendeu no Mercado Livre e receba um aviso quando um concorrente baixar o preço.",
-  applicationName: "Radar",
-  appleWebApp: { capable: true, title: "Radar", statusBarStyle: "default" },
+  description: descricao,
+  applicationName: "Olheiro de Preço",
+  keywords: ["monitorar preço concorrente", "Mercado Livre", "vendedor", "preço", "painel de vendas", "aviso de preço"],
+  appleWebApp: { capable: true, title: "Olheiro", statusBarStyle: "default" },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "Olheiro de Preço",
+    title: "Olheiro de Preço",
+    description: descricao,
+  },
+  twitter: { card: "summary_large_image", title: "Olheiro de Preço", description: descricao },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

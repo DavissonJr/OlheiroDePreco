@@ -1,5 +1,5 @@
 // Teste rápido: dá pra ler o preço de um anúncio de OUTRO vendedor pela API?
-// Esse é o coração do Radar, então vale rodar antes de tudo.
+// Esse é o coração do Olheiro de Preço, então vale rodar antes de tudo.
 //
 // Uso:
 //   ML_TOKEN=APP_USR-... node scripts/testar-ml.mjs MLB1234567890

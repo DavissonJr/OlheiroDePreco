@@ -6,7 +6,7 @@ import { useState } from "react";
 
 const PERGUNTAS = [
   {
-    p: "O Radar tem acesso à minha senha do Mercado Livre?",
+    p: "O Olheiro tem acesso à minha senha do Mercado Livre?",
     r: "Não. A conexão usa a autorização oficial do Mercado Livre: você entra no site deles e aprova o acesso. Dá pra revogar quando quiser nas configurações da sua conta do Mercado Livre.",
   },
   {
@@ -19,7 +19,7 @@ const PERGUNTAS = [
   },
   {
     p: "Como eu cancelo o Pro?",
-    r: "A assinatura é feita pelo Mercado Pago. Você cancela por lá ou pela tela de planos, e continua no Pro até o fim do mês pago.",
+    r: "Na tela de plano, com um toque, ou pelo app do Mercado Pago. Não tem multa, e você continua no Pro até o fim do mês já pago.",
   },
   {
     p: "Preciso deixar o app aberto pra receber os avisos?",

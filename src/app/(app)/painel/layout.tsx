@@ -17,13 +17,13 @@ export default function LayoutPainel({ children }: { children: React.ReactNode }
       <div className="min-w-0 flex-1">
         {demo && (
           <div className="bg-tag px-4 py-2 text-center text-sm font-medium text-tag-ink pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
-            Você está vendo dados de exemplo.{" "}
-            <Link href="/" className="font-bold underline underline-offset-2">Voltar ao site</Link>
+            Você está na demonstração.{" "}
+            <Link href="/entrar?criar=1" className="font-bold underline underline-offset-2">Criar conta grátis</Link>
           </div>
         )}
         <header className="flex items-center justify-between px-5 pt-4 lg:hidden">
           <Link href="/painel" aria-label="Visão geral">
-            <Logo tamanho="sm" />
+            <Logo tamanho="sm" curto />
           </Link>
         </header>
         {/* Entrada suave a cada troca de página (resposta ao toque na navegação) */}

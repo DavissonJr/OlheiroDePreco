@@ -35,7 +35,7 @@ export function CenaHero() {
 
   return (
     <div className="relative mx-auto w-full max-w-[520px]">
-      {/* Anéis de radar ao fundo */}
+      {/* Anéis de mira ao fundo */}
       <svg viewBox="0 0 400 400" className="pointer-events-none absolute -top-16 -right-20 w-[130%] max-w-none text-cobalt opacity-[.13] sm:-right-24" aria-hidden>
         {[60, 110, 160, 200].map((r) => (
           <circle key={r} cx="200" cy="200" r={r} fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -115,7 +115,7 @@ export function CenaHero() {
                 <span className="grid size-6 place-items-center rounded-full bg-[#2aabee] text-white">
                   <Send className="size-3.5 -translate-x-px" aria-hidden />
                 </span>
-                Radar no Telegram
+                Olheiro no Telegram
               </span>
               <span className="opacity-60">agora</span>
             </div>

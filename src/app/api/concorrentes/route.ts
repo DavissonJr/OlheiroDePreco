@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       permalink: item.permalink,
       preco_atual: item.preco,
       ultima_verificacao: new Date().toISOString(),
+      proxima_verificacao: new Date(Date.now() + PLANOS[plano].intervaloHoras * 3600000).toISOString(),
     }).select().single();
 
     if (error?.code === "23505") {

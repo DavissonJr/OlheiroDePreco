@@ -1,22 +1,34 @@
 import clsx from "clsx";
 
-export function MarcaRadar({ className }: { className?: string }) {
+// Marca: um olho atento. A íris é cobalto (a cor das suas ações no app)
+// e o brilho é a bolinha amarela das etiquetas de preço dos concorrentes.
+export function MarcaOlheiro({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
       <rect width="32" height="32" rx="9" fill="var(--cobalt)" />
-      <circle cx="16" cy="16" r="9.5" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="1.6" />
-      <circle cx="16" cy="16" r="5" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="1.6" />
-      <path d="M16 16 L16 6.5 A9.5 9.5 0 0 1 24.2 11.2 Z" fill="#fff" fillOpacity=".9" />
-      <circle cx="21.6" cy="19.4" r="2.3" fill="var(--tag)" />
+      <path d="M4 16c3.3-5.6 7.3-8.2 12-8.2s8.7 2.6 12 8.2c-3.3 5.6-7.3 8.2-12 8.2S7.3 21.6 4 16Z" fill="#fff" />
+      <circle cx="16" cy="16" r="5.6" fill="var(--cobalt)" />
+      <circle cx="16" cy="16" r="2.5" fill="#0d1531" />
+      <circle cx="18.6" cy="13.5" r="1.7" fill="var(--tag)" />
     </svg>
   );
 }
 
-export function Logo({ className, tamanho = "md" }: { className?: string; tamanho?: "sm" | "md" }) {
+export function Logo({
+  className,
+  tamanho = "md",
+  curto = false,
+}: {
+  className?: string;
+  tamanho?: "sm" | "md";
+  curto?: boolean;
+}) {
   return (
     <span className={clsx("inline-flex items-center gap-2 font-display font-bold text-ink", className)}>
-      <MarcaRadar className={tamanho === "sm" ? "size-7" : "size-8"} />
-      <span className={tamanho === "sm" ? "text-lg" : "text-xl"}>Radar</span>
+      <MarcaOlheiro className={tamanho === "sm" ? "size-7 shrink-0" : "size-8 shrink-0"} />
+      <span className={clsx("whitespace-nowrap", tamanho === "sm" ? "text-lg" : "text-xl")}>
+        {curto ? "Olheiro" : "Olheiro de Preço"}
+      </span>
     </span>
   );
 }

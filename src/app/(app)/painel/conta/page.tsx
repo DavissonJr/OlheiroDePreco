@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Bell, ChevronRight, Download, ExternalLink, Gem, LogOut, RefreshCw } from "lucide-react";
+import { Bell, ChevronRight, Download, ExternalLink, Gem, LogOut, RefreshCw, Trash2 } from "lucide-react";
 import { useDados } from "@/components/app/dados";
 import { Cabecalho } from "@/components/app/cabecalho";
 import { Botao } from "@/components/ui/botao";
@@ -11,6 +11,8 @@ import { Esqueleto } from "@/components/ui/esqueleto";
 import { useAviso } from "@/components/ui/aviso";
 import { MARKETPLACES, type Marketplace } from "@/lib/types";
 import { PLANOS } from "@/lib/planos";
+import { hrefConectarML } from "@/lib/demo";
+import { Gaveta } from "@/components/ui/gaveta";
 
 interface EventoInstalar extends Event {
   prompt: () => Promise<void>;
@@ -19,7 +21,8 @@ interface EventoInstalar extends Event {
 
 export default function Conta() {
   const avisar = useAviso();
-  const { carregando, perfil, atualizarPerfil, sincronizar, sair } = useDados();
+  const { carregando, perfil, atualizarPerfil, sincronizar, sair, excluirConta, demo } = useDados();
+  const [excluindo, setExcluindo] = useState(false);
   const [nome, setNome] = useState("");
   const [sincronizando, setSincronizando] = useState(false);
   const [instalar, setInstalar] = useState<EventoInstalar | null>(null);
@@ -46,7 +49,8 @@ export default function Conta() {
     atualizarPerfil({ marketplaces: lista });
   };
 
-  const secao = "rounded-[22px] bg-surface p-5 ring-1 ring-line sm:p-6";
+  const caixa = "rounded-[22px] bg-surface ring-1 ring-line";
+  const secao = `${caixa} p-5 sm:p-6`;
 
   return (
     <>
@@ -103,13 +107,13 @@ export default function Conta() {
                 >
                   Atualizar vendas e anúncios
                 </Botao>
-                <a href="/api/ml/conectar" className="inline-flex h-11 items-center gap-2 rounded-xl px-4 font-semibold text-muted hover:bg-surface-2 hover:text-ink">
+                <a href={hrefConectarML(demo)} className="inline-flex h-11 items-center gap-2 rounded-xl px-4 font-semibold text-muted hover:bg-surface-2 hover:text-ink">
                   Reconectar <ExternalLink className="size-4" aria-hidden />
                 </a>
               </div>
             </>
           ) : (
-            <a href="/api/ml/conectar" className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[#ffe14d] px-5 font-semibold text-[#2d3277]">
+            <a href={hrefConectarML(demo)} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[#ffe14d] px-5 font-semibold text-[#2d3277]">
               Conectar Mercado Livre <ExternalLink className="size-4" aria-hidden />
             </a>
           )}
@@ -140,7 +144,7 @@ export default function Conta() {
           </div>
         </section>
 
-        <section className={clsx(secao, "p-0 sm:p-0")}>
+        <section className={clsx(caixa, "overflow-hidden")}>
           {[
             { href: "/painel/planos", icone: Gem, titulo: "Plano", sub: PLANOS[perfil.plano].nome },
             { href: "/painel/alertas", icone: Bell, titulo: "Avisos", sub: "Telegram e e-mail" },
@@ -165,16 +169,75 @@ export default function Conta() {
               <Download className="size-5 text-muted" aria-hidden />
               <span className="flex-1">
                 <span className="block font-semibold">Instalar o app</span>
-                <span className="block text-sm text-muted">Abra o Radar direto da tela inicial</span>
+                <span className="block text-sm text-muted">Abra o Olheiro direto da tela inicial</span>
               </span>
             </button>
           )}
         </section>
       </div>
 
-      <Botao variante="fantasma" className="mt-8 text-drop" icone={<LogOut className="size-4" aria-hidden />} onClick={sair}>
-        Sair da conta
-      </Botao>
+      <div className="mt-8 flex flex-wrap gap-2">
+        <Botao variante="fantasma" icone={<LogOut className="size-4" aria-hidden />} onClick={sair}>
+          {demo ? "Sair da demonstração" : "Sair da conta"}
+        </Botao>
+        {!demo && (
+          <Botao variante="fantasma" className="text-drop" icone={<Trash2 className="size-4" aria-hidden />} onClick={() => setExcluindo(true)}>
+            Excluir conta
+          </Botao>
+        )}
+      </div>
+
+      <Gaveta aberta={excluindo} aoFechar={() => setExcluindo(false)} titulo="Excluir conta">
+        <ExcluirConta aoConfirmar={excluirConta} assinaturaAtiva={perfil.assinatura_ativa} />
+      </Gaveta>
     </>
+  );
+}
+
+function ExcluirConta({ aoConfirmar, assinaturaAtiva }: { aoConfirmar: () => Promise<{ ok: boolean; erro?: string }>; assinaturaAtiva: boolean }) {
+  const avisar = useAviso();
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const pronto = texto.trim().toUpperCase() === "EXCLUIR";
+
+  return (
+    <div className="space-y-5 pb-2">
+      <p>Isso apaga de vez sua conta e tudo ligado a ela:</p>
+      <ul className="list-disc space-y-1.5 pl-5 text-muted">
+        <li>Concorrentes acompanhados e histórico de preços</li>
+        <li>Vendas e anúncios importados do Mercado Livre</li>
+        <li>Avisos e conexão com o Telegram</li>
+        {assinaturaAtiva && <li className="font-semibold text-ink">Sua assinatura do Pro, que será cancelada no Mercado Pago</li>}
+      </ul>
+      <p className="text-sm text-muted">Não dá pra desfazer. Pra usar de novo, você vai precisar criar outra conta.</p>
+      <div>
+        <label htmlFor="confirmar-exclusao" className="block pb-1.5 text-sm font-semibold">
+          Digite EXCLUIR pra confirmar
+        </label>
+        <input
+          id="confirmar-exclusao"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          autoComplete="off"
+          autoCapitalize="characters"
+          className="h-12 w-full rounded-xl bg-surface-2 px-4 text-[16px] ring-1 ring-inset ring-line outline-none focus:ring-2 focus:ring-drop"
+        />
+      </div>
+      <Botao
+        variante="perigo"
+        tamanho="lg"
+        className="w-full"
+        disabled={!pronto}
+        carregando={enviando}
+        onClick={async () => {
+          setEnviando(true);
+          const r = await aoConfirmar();
+          setEnviando(false);
+          if (!r.ok) avisar(r.erro ?? "Algo deu errado.", "erro");
+        }}
+      >
+        Excluir minha conta
+      </Botao>
+    </div>
   );
 }

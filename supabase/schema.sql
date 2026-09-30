@@ -1,5 +1,5 @@
 -- =====================================================================
--- Radar: estrutura do banco (Supabase / Postgres)
+-- Olheiro de Preço: estrutura do banco (Supabase / Postgres)
 -- Cole tudo no SQL Editor do Supabase e rode uma vez.
 -- =====================================================================
 
@@ -11,6 +11,8 @@ create table if not exists public.profiles (
   marketplaces text[] not null default '{mercadolivre}',
   plano text not null default 'gratis' check (plano in ('gratis', 'pro')),
   mp_assinatura_id text,
+  assinatura_status text,             -- pending | authorized | paused | cancelled
+  pro_ate timestamptz,                -- fim do período pago do Pro
   ml_nickname text,
   telegram_chat_id text,
   telegram_link_code text unique,
@@ -69,11 +71,12 @@ create table if not exists public.concorrentes (
   preco_atual numeric(12,2),
   preco_anterior numeric(12,2),
   ultima_verificacao timestamptz,
+  proxima_verificacao timestamptz not null default now(),
   ativo boolean not null default true,
   created_at timestamptz not null default now(),
   unique (user_id, item_id)
 );
-create index if not exists concorrentes_verificacao on public.concorrentes(ativo, ultima_verificacao nulls first);
+create index if not exists concorrentes_fila on public.concorrentes(ativo, proxima_verificacao);
 
 -- Histórico de preços de cada concorrente
 create table if not exists public.historico_precos (
@@ -146,23 +149,5 @@ create policy "alertas: marcar como lido" on public.alertas for update using (au
 revoke update on public.alertas from authenticated;
 grant update (lido) on public.alertas to authenticated;
 
--- ---------------------------------------------------------------------
--- Agendador: chama a conferência de preços de hora em hora.
--- 1) Em Database > Extensions, ative "pg_cron" e "pg_net".
--- 2) Troque SEU-DOMINIO e SEU_CRON_SECRET abaixo e rode este bloco.
--- ---------------------------------------------------------------------
--- select cron.schedule(
---   'radar-conferir-precos',
---   '5 * * * *',
---   $$
---   select net.http_post(
---     url := 'https://SEU-DOMINIO/api/cron/precos',
---     headers := '{"Authorization": "Bearer SEU_CRON_SECRET", "Content-Type": "application/json"}'::jsonb,
---     timeout_milliseconds := 300000
---   );
---   $$
--- );
-
--- Limpeza: apaga histórico com mais de 90 dias, todo dia às 4h.
--- select cron.schedule('radar-limpar-historico', '0 4 * * *',
---   $$ delete from public.historico_precos where registrado_em < now() - interval '90 days' $$);
+-- O agendador (conferência de preços e limpezas) fica em supabase/agendador.sql.
+-- Rode aquele arquivo DEPOIS de publicar o site.

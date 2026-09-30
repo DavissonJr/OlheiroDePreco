@@ -83,6 +83,8 @@ export function criarDemo() {
     email: "marina@exemplo.com.br",
     marketplaces: ["mercadolivre", "shopee"],
     plano: "gratis",
+    pro_ate: null,
+    assinatura_ativa: false,
     ml_nickname: "MARINAACESSORIOS",
     telegram_conectado: false,
     alerta_email: true,

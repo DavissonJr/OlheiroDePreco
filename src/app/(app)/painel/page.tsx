@@ -18,6 +18,7 @@ import { Esqueleto } from "@/components/ui/esqueleto";
 import { useAviso } from "@/components/ui/aviso";
 import { maisVendidos, resumo, seriePorDia, variacao, vendasNoPeriodo, type Periodo } from "@/lib/metricas";
 import { numero, porcentagem, primeiroNome, reais, tempoRelativo } from "@/lib/format";
+import { hrefConectarML } from "@/lib/demo";
 
 function Variacao({ v }: { v: number | null }) {
   if (v == null) return <span className="text-sm text-muted">sem período anterior pra comparar</span>;
@@ -34,7 +35,7 @@ function Variacao({ v }: { v: number | null }) {
 export default function VisaoGeral() {
   const router = useRouter();
   const avisar = useAviso();
-  const { carregando, perfil, vendas, produtos, concorrentes, sincronizar } = useDados();
+  const { carregando, perfil, vendas, produtos, concorrentes, sincronizar, demo } = useDados();
   const [periodo, setPeriodo] = useState<Periodo>(30);
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -88,7 +89,7 @@ export default function VisaoGeral() {
       <div className="mx-auto max-w-lg py-16 text-center">
         <h1 className="text-3xl font-bold">Conecte o Mercado Livre pra ver suas vendas</h1>
         <p className="mt-3 text-muted">O painel se monta sozinho com os pedidos dos últimos 90 dias.</p>
-        <a href="/api/ml/conectar" className="mt-8 inline-flex h-13 items-center gap-2 rounded-[14px] bg-[#ffe14d] px-6 font-semibold text-[#2d3277] active:scale-[.97]">
+        <a href={hrefConectarML(demo)} className="mt-8 inline-flex h-13 items-center gap-2 rounded-[14px] bg-[#ffe14d] px-6 font-semibold text-[#2d3277] active:scale-[.97]">
           Conectar Mercado Livre <ExternalLink className="size-4" aria-hidden />
         </a>
       </div>

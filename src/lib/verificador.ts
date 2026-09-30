@@ -25,35 +25,44 @@ interface Linha {
   };
 }
 
-const LOTE = 300;
+const LOTE = 150;
+// Para antes do limite de tempo da função (60 s no plano gratuito da Vercel).
+const ORCAMENTO_MS = 50_000;
 
 export async function verificarPrecos() {
   const sb = supabaseAdmin();
+  // Fila: só quem já passou da hora da próxima conferência, do mais atrasado pro menos.
   const { data, error } = await sb
     .from("concorrentes")
     .select("id,user_id,item_id,titulo,vendedor,meu_item_id,preco_atual,ultima_verificacao,profiles!inner(plano,email,telegram_chat_id,alerta_email,alerta_telegram)")
     .eq("ativo", true)
-    .order("ultima_verificacao", { ascending: true, nullsFirst: true })
+    .lte("proxima_verificacao", new Date().toISOString())
+    .order("proxima_verificacao", { ascending: true })
     .limit(LOTE);
   if (error) throw error;
+  const pendentes = data as unknown as Linha[];
 
-  const agora = Date.now();
-  const pendentes = (data as unknown as Linha[]).filter((c) => {
-    if (!c.ultima_verificacao) return true;
-    const horas = PLANOS[c.profiles.plano]?.intervaloHoras ?? 6;
-    // Folga de 5 min pra não pular uma rodada por causa de atraso do agendador.
-    return agora - new Date(c.ultima_verificacao).getTime() >= horas * 3600000 - 5 * 60000;
-  });
+  const proxima = (plano: PlanoId) =>
+    new Date(Date.now() + (PLANOS[plano]?.intervaloHoras ?? 6) * 3600000).toISOString();
 
   const porUsuario = new Map<string, Linha[]>();
   for (const c of pendentes) porUsuario.set(c.user_id, [...(porUsuario.get(c.user_id) ?? []), c]);
 
   let verificados = 0;
   let avisos = 0;
+  const prazo = Date.now() + ORCAMENTO_MS;
 
   for (const [userId, lista] of porUsuario) {
+    if (Date.now() > prazo) break;
     const acesso = await tokenValido(userId).catch(() => null);
-    if (!acesso) continue;
+    if (!acesso) {
+      // Conta do ML desconectada ou token revogado: tira da frente da fila por 6 h.
+      await sb
+        .from("concorrentes")
+        .update({ proxima_verificacao: new Date(Date.now() + 6 * 3600000).toISOString() })
+        .in("id", lista.map((c) => c.id));
+      continue;
+    }
 
     const meusIds = [...new Set(lista.map((c) => c.meu_item_id).filter(Boolean))] as string[];
     const { data: meus } = meusIds.length
@@ -62,12 +71,14 @@ export async function verificarPrecos() {
     const meuPreco = new Map((meus ?? []).map((p) => [p.id, p.preco as number]));
 
     for (const c of lista) {
+      if (Date.now() > prazo) break;
       const preco = await precoDeVenda(c.item_id, acesso.token);
       verificados++;
       const agoraIso = new Date().toISOString();
+      const proximaIso = proxima(c.profiles.plano);
 
       if (preco == null) {
-        await sb.from("concorrentes").update({ ultima_verificacao: agoraIso }).eq("id", c.id);
+        await sb.from("concorrentes").update({ ultima_verificacao: agoraIso, proxima_verificacao: proximaIso }).eq("id", c.id);
         continue;
       }
 
@@ -76,6 +87,7 @@ export async function verificarPrecos() {
         preco_atual: preco,
         ...(mudou && c.preco_atual != null ? { preco_anterior: c.preco_atual } : {}),
         ultima_verificacao: agoraIso,
+        proxima_verificacao: proximaIso,
       }).eq("id", c.id);
 
       if (!mudou) continue;
@@ -123,7 +135,7 @@ export async function verificarPrecos() {
         await enviarEmail(
           p.email,
           `Preço caiu: ${c.titulo}`,
-          `<p><strong>${escaparHtml(c.titulo)}</strong></p><p>${escaparHtml(mensagem)}</p><p><a href="${SITE_URL}/painel/concorrentes">Abrir o Radar</a></p>`,
+          `<p><strong>${escaparHtml(c.titulo)}</strong></p><p>${escaparHtml(mensagem)}</p><p><a href="${SITE_URL}/painel/concorrentes">Abrir o Olheiro de Preço</a></p>`,
         );
       }
     }

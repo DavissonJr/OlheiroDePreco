@@ -16,7 +16,7 @@ export async function criarAssinatura(userId: string, email: string) {
     method: "POST",
     headers: cabecalhos(),
     body: JSON.stringify({
-      reason: "Radar Pro",
+      reason: "Olheiro de Preço Pro",
       external_reference: userId,
       payer_email: email,
       back_url: `${SITE_URL}/painel/planos?assinatura=ok`,
@@ -34,8 +34,25 @@ export async function criarAssinatura(userId: string, email: string) {
   return dados.init_point as string;
 }
 
+export interface Assinatura {
+  id: string;
+  status: "pending" | "authorized" | "paused" | "cancelled";
+  external_reference: string;
+  next_payment_date?: string;
+}
+
 export async function consultarAssinatura(id: string) {
   const res = await fetch(`${API}/preapproval/${id}`, { headers: cabecalhos(), cache: "no-store" });
   if (!res.ok) throw new Error(`Assinatura ${id} não encontrada (${res.status})`);
-  return (await res.json()) as { id: string; status: string; external_reference: string };
+  return (await res.json()) as Assinatura;
+}
+
+export async function cancelarAssinaturaMP(id: string) {
+  const res = await fetch(`${API}/preapproval/${id}`, {
+    method: "PUT",
+    headers: cabecalhos(),
+    body: JSON.stringify({ status: "cancelled" }),
+  });
+  if (!res.ok) throw new Error(`Mercado Pago recusou o cancelamento (${res.status}): ${await res.text()}`);
+  return (await res.json()) as Assinatura;
 }

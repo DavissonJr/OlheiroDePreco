@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { Bell, Gem, LayoutDashboard, Radar, UserRound } from "lucide-react";
+import { Bell, Eye, Gem, LayoutDashboard, UserRound } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useDados } from "./dados";
 import { PLANOS } from "@/lib/planos";
 
 const ITENS = [
   { href: "/painel", rotulo: "Visão geral", curto: "Início", icone: LayoutDashboard },
-  { href: "/painel/concorrentes", rotulo: "Concorrentes", curto: "Concorrentes", icone: Radar },
+  { href: "/painel/concorrentes", rotulo: "Concorrentes", curto: "Concorrentes", icone: Eye },
   { href: "/painel/alertas", rotulo: "Avisos", curto: "Avisos", icone: Bell },
   { href: "/painel/planos", rotulo: "Plano", curto: "Plano", icone: Gem, soDesktop: true },
   { href: "/painel/conta", rotulo: "Conta", curto: "Conta", icone: UserRound },
@@ -30,7 +30,7 @@ export function BarraLateral() {
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
       <Link href="/painel" className="px-2" aria-label="Visão geral">
-        <Logo />
+        <Logo curto />
       </Link>
       <nav className="mt-9 space-y-1" aria-label="Principal">
         {ITENS.map((i) => {

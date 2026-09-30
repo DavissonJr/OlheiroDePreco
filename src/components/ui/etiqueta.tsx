@@ -3,7 +3,7 @@ import { reais } from "@/lib/format";
 
 type Tom = "rival" | "mine" | "drop" | "quiet";
 
-// A etiqueta de preço é a peça visual central do Radar:
+// A etiqueta de preço é a peça visual central do Olheiro de Preço:
 // amarelo = concorrente, cobalto = você, vermelho = queda que te passou.
 export function Etiqueta({
   valor,

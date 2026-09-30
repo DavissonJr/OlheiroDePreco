@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useRouter } from "next/navigation";
 import { IS_DEMO } from "@/lib/config";
 import { concorrenteFicticio, criarDemo } from "@/lib/demo-data";
+import { lerEstadoDemo, sairDemo, salvarEstadoDemo, sessaoDemoAtiva } from "@/lib/demo";
 import { supabaseNavegador } from "@/lib/supabase/client";
 import type { Alerta, Concorrente, Perfil, PontoPreco, Produto, Venda } from "@/lib/types";
 import { PLANOS } from "@/lib/planos";
@@ -30,7 +31,8 @@ interface Store extends Estado {
   sincronizar: () => Promise<Resultado>;
   conectarTelegram: () => Promise<Resultado & { link?: string }>;
   assinarPro: () => Promise<Resultado>;
-  cancelarProDemo: () => void;
+  cancelarAssinatura: () => Promise<Resultado & { ate?: string | null }>;
+  excluirConta: () => Promise<Resultado>;
   recarregar: () => Promise<void>;
   sair: () => Promise<void>;
 }
@@ -46,14 +48,20 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // entre o HTML do servidor e o do cliente.
   const [estado, setEstado] = useState<Estado>(VAZIO);
   const [carregando, setCarregando] = useState(true);
+  const [demo, setDemo] = useState(IS_DEMO);
+  const emDemo = useRef(IS_DEMO);
   const atual = useRef(estado);
   useEffect(() => {
     atual.current = estado;
+    if (emDemo.current && estado.perfil?.id === "demo") salvarEstadoDemo(estado);
   }, [estado]);
 
   const carregar = useCallback(async () => {
-    if (IS_DEMO) {
-      setEstado((e) => (e.perfil ? e : criarDemo()));
+    const modoDemo = IS_DEMO || sessaoDemoAtiva();
+    emDemo.current = modoDemo;
+    setDemo(modoDemo);
+    if (modoDemo) {
+      setEstado((e) => (e.perfil?.id === "demo" ? e : lerEstadoDemo<Estado>() ?? criarDemo()));
       setCarregando(false);
       return;
     }
@@ -95,6 +103,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
             email: p.email,
             marketplaces: p.marketplaces ?? [],
             plano: p.plano,
+            pro_ate: p.pro_ate,
+            assinatura_ativa: p.assinatura_status === "authorized",
             ml_nickname: p.ml_nickname,
             telegram_conectado: !!p.telegram_chat_id,
             alerta_email: p.alerta_email,
@@ -123,7 +133,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   const limiteConcorrentes = PLANOS[estado.perfil?.plano ?? "gratis"].limiteConcorrentes;
 
   const adicionarConcorrente = useCallback(async (link: string, meuItemId: string | null): Promise<Resultado> => {
-    if (IS_DEMO) {
+    if (emDemo.current) {
       await espera(900);
       const m = link.match(/MLB-?(\d{6,})/i);
       if (!m) return { ok: false, erro: "Não encontrei o código do anúncio nesse link. Copie o endereço da página do produto no Mercado Livre." };
@@ -157,22 +167,22 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
 
   const removerConcorrente = useCallback(async (id: string) => {
     setEstado((e) => ({ ...e, concorrentes: e.concorrentes.filter((c) => c.id !== id) }));
-    if (!IS_DEMO) await supabaseNavegador().from("concorrentes").delete().eq("id", id);
+    if (!emDemo.current) await supabaseNavegador().from("concorrentes").delete().eq("id", id);
   }, []);
 
   const marcarAlertasLidos = useCallback(async () => {
     setEstado((e) => ({ ...e, alertas: e.alertas.map((a) => ({ ...a, lido: true })) }));
-    if (!IS_DEMO) await supabaseNavegador().from("alertas").update({ lido: true }).eq("lido", false);
+    if (!emDemo.current) await supabaseNavegador().from("alertas").update({ lido: true }).eq("lido", false);
   }, []);
 
   const atualizarPerfil = useCallback<Store["atualizarPerfil"]>(async (p) => {
     const id = atual.current.perfil?.id;
     setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, ...p } } : e));
-    if (!IS_DEMO && id) await supabaseNavegador().from("profiles").update(p).eq("id", id);
+    if (!emDemo.current && id) await supabaseNavegador().from("profiles").update(p).eq("id", id);
   }, []);
 
   const sincronizar = useCallback(async (): Promise<Resultado> => {
-    if (IS_DEMO) {
+    if (emDemo.current) {
       await espera(1400);
       return { ok: true };
     }
@@ -184,7 +194,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   }, [carregar]);
 
   const conectarTelegram = useCallback(async () => {
-    if (IS_DEMO) {
+    if (emDemo.current) {
       await espera(700);
       setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, telegram_conectado: true } } : e));
       return { ok: true as const };
@@ -196,9 +206,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const assinarPro = useCallback(async (): Promise<Resultado> => {
-    if (IS_DEMO) {
+    if (emDemo.current) {
       await espera(1100);
-      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: "pro" } } : e));
+      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: "pro", assinatura_ativa: true } } : e));
       return { ok: true };
     }
     const res = await fetch("/api/assinatura", { method: "POST" });
@@ -208,19 +218,43 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   }, []);
 
-  const cancelarProDemo = useCallback(() => {
-    setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: "gratis" } } : e));
+  const cancelarAssinatura = useCallback(async () => {
+    if (emDemo.current) {
+      await espera(800);
+      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: "gratis", assinatura_ativa: false } } : e));
+      return { ok: true as const, ate: null };
+    }
+    const res = await fetch("/api/assinatura", { method: "DELETE" });
+    const corpo = await res.json();
+    if (!res.ok) return { ok: false as const, erro: corpo.erro ?? "Não consegui cancelar agora." };
+    setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, assinatura_ativa: false, pro_ate: corpo.ate ?? null } } : e));
+    return { ok: true as const, ate: corpo.ate as string | null };
   }, []);
 
+  const excluirConta = useCallback(async (): Promise<Resultado> => {
+    if (emDemo.current) {
+      sairDemo();
+      router.push("/");
+      return { ok: true };
+    }
+    const res = await fetch("/api/conta/excluir", { method: "POST" });
+    const corpo = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, erro: corpo.erro ?? "Não consegui excluir a conta agora." };
+    await supabaseNavegador().auth.signOut();
+    router.push("/");
+    return { ok: true };
+  }, [router]);
+
   const sair = useCallback(async () => {
-    if (!IS_DEMO) await supabaseNavegador().auth.signOut();
+    if (emDemo.current) sairDemo();
+    else await supabaseNavegador().auth.signOut();
     router.push("/");
   }, [router]);
 
   const valor = useMemo<Store>(
     () => ({
       ...estado,
-      demo: IS_DEMO,
+      demo,
       carregando,
       limiteConcorrentes,
       adicionarConcorrente,
@@ -230,11 +264,12 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       sincronizar,
       conectarTelegram,
       assinarPro,
-      cancelarProDemo,
+      cancelarAssinatura,
+      excluirConta,
       recarregar: carregar,
       sair,
     }),
-    [estado, carregando, limiteConcorrentes, adicionarConcorrente, removerConcorrente, marcarAlertasLidos, atualizarPerfil, sincronizar, conectarTelegram, assinarPro, cancelarProDemo, carregar, sair],
+    [estado, carregando, demo, limiteConcorrentes, adicionarConcorrente, removerConcorrente, marcarAlertasLidos, atualizarPerfil, sincronizar, conectarTelegram, assinarPro, cancelarAssinatura, excluirConta, carregar, sair],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

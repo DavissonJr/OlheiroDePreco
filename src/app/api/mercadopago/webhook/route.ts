@@ -14,11 +14,21 @@ export async function POST(req: Request) {
 
   try {
     const a = await consultarAssinatura(String(id));
-    const plano = a.status === "authorized" ? "pro" : "gratis";
-    await supabaseAdmin()
-      .from("profiles")
-      .update({ plano, mp_assinatura_id: a.id })
-      .eq("id", a.external_reference);
+    const sb = supabaseAdmin();
+    if (a.status === "authorized") {
+      await sb.from("profiles").update({
+        plano: "pro",
+        assinatura_status: a.status,
+        mp_assinatura_id: a.id,
+        pro_ate: a.next_payment_date ?? null,
+      }).eq("id", a.external_reference);
+      // Virou Pro: antecipa a próxima conferência pra já entrar no ritmo de 1 hora.
+      await sb.from("concorrentes").update({ proxima_verificacao: new Date().toISOString() }).eq("user_id", a.external_reference);
+    } else {
+      // Cancelada ou pausada: o Pro continua até o fim do período já pago.
+      // A rotina diária do banco rebaixa pro Grátis quando pro_ate passar.
+      await sb.from("profiles").update({ assinatura_status: a.status, mp_assinatura_id: a.id }).eq("id", a.external_reference);
+    }
   } catch (e) {
     console.error(e);
     return NextResponse.json({ ok: false }, { status: 500 });

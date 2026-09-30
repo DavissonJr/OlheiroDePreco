@@ -6,12 +6,12 @@ import { Etiqueta } from "@/components/ui/etiqueta";
 import { CenaHero } from "@/components/landing/cena-hero";
 import { Duvidas } from "@/components/landing/duvidas";
 import { PLANOS } from "@/lib/planos";
-import { IS_DEMO } from "@/lib/config";
+import { Rodape } from "@/components/site/rodape";
 
 const PASSOS = [
   {
     titulo: "Conecte sua conta do Mercado Livre",
-    texto: "Você aprova o acesso no próprio site do Mercado Livre. O Radar nunca vê sua senha.",
+    texto: "Você aprova o acesso no próprio site do Mercado Livre. O Olheiro nunca vê sua senha.",
   },
   {
     titulo: "Cole o link dos concorrentes",
@@ -27,7 +27,7 @@ export default function Inicio() {
   return (
     <div className="overflow-x-clip">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-4 sm:px-8">
-        <Link href="/" aria-label="Radar, página inicial">
+        <Link href="/" aria-label="Olheiro de Preço, página inicial">
           <Logo />
         </Link>
         <nav className="hidden items-center gap-8 text-[15px] font-medium text-muted md:flex" aria-label="Seções">
@@ -56,11 +56,9 @@ export default function Inicio() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <BotaoLink href="/entrar?criar=1" tamanho="lg">Criar conta grátis</BotaoLink>
-              {IS_DEMO && (
-                <BotaoLink href="/painel" variante="secundario" tamanho="lg">Abrir o painel de demonstração</BotaoLink>
-              )}
+              <BotaoLink href="/demo" variante="secundario" tamanho="lg">Ver a demonstração</BotaoLink>
             </div>
-            <p className="mt-4 text-sm text-muted">Grátis pra acompanhar até 3 concorrentes. Não pede cartão.</p>
+            <p className="mt-4 text-sm text-muted">Grátis pra acompanhar até 3 concorrentes. Não pede cartão. A demonstração não pede nem cadastro.</p>
           </div>
           <CenaHero />
         </section>
@@ -185,12 +183,7 @@ export default function Inicio() {
         </section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <Logo tamanho="sm" />
-          <p>O Radar não é afiliado ao Mercado Livre nem ao Mercado Pago.</p>
-        </div>
-      </footer>
+      <Rodape />
     </div>
   );
 }

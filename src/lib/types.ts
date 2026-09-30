@@ -16,6 +16,9 @@ export interface Perfil {
   email: string | null;
   marketplaces: Marketplace[];
   plano: PlanoId;
+  // Até quando o Pro vale depois de um cancelamento (fim do período pago).
+  pro_ate: string | null;
+  assinatura_ativa: boolean;
   ml_nickname: string | null;
   telegram_conectado: boolean;
   alerta_email: boolean;

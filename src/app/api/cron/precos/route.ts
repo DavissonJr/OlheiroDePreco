@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verificarPrecos } from "@/lib/verificador";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 // Protegido por um segredo: só o agendador do Supabase consegue chamar.
 async function executar(req: Request) {

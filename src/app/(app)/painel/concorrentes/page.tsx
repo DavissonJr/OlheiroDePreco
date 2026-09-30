@@ -103,7 +103,7 @@ export default function Concorrentes() {
           <Etiqueta valor={null} tom="rival" tamanho="lg" className="opacity-60" />
           <h2 className="mt-5 text-2xl font-bold">Nenhum concorrente ainda</h2>
           <p className="mx-auto mt-2 max-w-[42ch] text-muted">
-            Abra o anúncio de um concorrente no Mercado Livre, copie o link e cole aqui. O Radar passa a vigiar o preço dele.
+            Abra o anúncio de um concorrente no Mercado Livre, copie o link e cole aqui. O Olheiro passa a vigiar o preço dele.
           </p>
           <Botao className="mt-6" icone={<Plus className="size-5" aria-hidden />} onClick={() => setAdicionando(true)}>
             Adicionar o primeiro
@@ -177,7 +177,7 @@ export default function Concorrentes() {
           aoAdicionar={async (link, meu) => {
             const r = await adicionarConcorrente(link, meu);
             if (r.ok) {
-              avisar("Concorrente adicionado. O Radar já está de olho no preço.");
+              avisar("Concorrente adicionado. O Olheiro já está de olho no preço.");
               setAdicionando(false);
             }
             return r;

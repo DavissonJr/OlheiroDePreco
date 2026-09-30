@@ -135,3 +135,11 @@ h1, h2, h3, .font-display {
     scroll-behavior: auto !important;
   }
 }
+
+/* Texto corrido das páginas de Termos e Privacidade */
+.legal h2 { font-size: 1.5rem; font-weight: 700; margin: 2.5rem 0 0.75rem; }
+.legal p { margin: 0 0 1rem; }
+.legal ul { margin: 0 0 1rem; padding-left: 1.25rem; list-style: disc; }
+.legal li { margin: 0.35rem 0; }
+.legal a { color: var(--cobalt); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.legal strong { font-weight: 700; }

@@ -12,6 +12,7 @@ import { Chave } from "@/components/ui/chave";
 import { Logo } from "@/components/ui/logo";
 import { MARKETPLACES, type Marketplace } from "@/lib/types";
 import { primeiroNome } from "@/lib/format";
+import { hrefConectarML } from "@/lib/demo";
 
 const ETAPAS = ["Onde você vende", "Mercado Livre", "Avisos"];
 
@@ -77,7 +78,7 @@ export default function Onboarding() {
   return (
     <div className="flex min-h-dvh flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-10 sm:px-8">
       <div className="mx-auto flex w-full max-w-xl items-center justify-between">
-        <Logo tamanho="sm" />
+        <Logo tamanho="sm" curto />
         <span className="text-sm text-muted num">
           Etapa {etapa + 1} de {ETAPAS.length}
         </span>
@@ -155,7 +156,7 @@ export default function Onboarding() {
             <motion.section key="e1" custom={direcao} variants={variantes} initial="entra" animate="centro" exit="sai" transition={{ duration: 0.28 }}>
               <h1 className="text-3xl font-bold sm:text-4xl">Conecte sua conta do Mercado Livre</h1>
               <p className="mt-2 text-muted">
-                Você vai pro site do Mercado Livre, confere o que o Radar pode ver e aprova. Depois volta pra cá sozinho.
+                Você vai pro site do Mercado Livre, confere o que o Olheiro pode ver e aprova. Depois volta pra cá sozinho.
               </p>
 
               <ul className="mt-8 space-y-3 rounded-2xl bg-surface p-5 ring-1 ring-line">
@@ -170,7 +171,7 @@ export default function Onboarding() {
                   </li>
                 ))}
                 <li className="border-t border-line pt-3 text-sm text-muted">
-                  O Radar não altera preços nem anúncios e nunca vê sua senha.
+                  O Olheiro não altera preços nem anúncios e nunca vê sua senha.
                 </li>
               </ul>
 
@@ -182,7 +183,7 @@ export default function Onboarding() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
-                  href="/api/ml/conectar"
+                  href={hrefConectarML(demo)}
                   className="inline-flex h-13 items-center justify-center gap-2 rounded-[14px] bg-[#ffe14d] px-6 font-semibold text-[#2d3277] transition-transform hover:brightness-105 active:scale-[.97]"
                 >
                   Conectar Mercado Livre
@@ -208,7 +209,7 @@ export default function Onboarding() {
                 </motion.p>
               )}
               <h1 className="text-3xl font-bold sm:text-4xl">Onde você quer receber os avisos?</h1>
-              <p className="mt-2 text-muted">Quando um concorrente baixar o preço, o Radar te chama aqui.</p>
+              <p className="mt-2 text-muted">Quando um concorrente baixar o preço, o Olheiro te chama aqui.</p>
 
               <div className="mt-8 divide-y divide-line rounded-2xl bg-surface ring-1 ring-line">
                 <div className="flex items-center gap-4 p-5">

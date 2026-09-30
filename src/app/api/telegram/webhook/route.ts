@@ -29,11 +29,11 @@ export async function POST(req: Request) {
       chatId,
       data
         ? "Pronto! Você vai receber aqui um aviso sempre que um concorrente baixar o preço."
-        : "Esse link expirou. Abra o Radar e toque em “Conectar Telegram” de novo.",
+        : "Esse link expirou. Abra o Olheiro de Preço e toque em “Conectar Telegram” de novo.",
     );
   } else if (comando === "/parar") {
     await supabaseAdmin().from("profiles").update({ telegram_chat_id: null }).eq("telegram_chat_id", chatId);
-    await enviarTelegram(chatId, "Avisos desligados. Pra religar, conecte de novo pelo Radar.");
+    await enviarTelegram(chatId, "Avisos desligados. Pra religar, conecte de novo pelo Olheiro de Preço.");
   }
 
   return NextResponse.json({ ok: true });
