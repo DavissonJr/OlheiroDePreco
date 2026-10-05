@@ -11,15 +11,23 @@ const PERGUNTAS = [
   },
   {
     p: "De quanto em quanto tempo os preços são conferidos?",
-    r: "A cada 6 horas no plano Grátis e a cada hora no Pro. Quando o preço cai, o aviso sai na mesma rodada.",
+    r: "A cada 6 horas no Grátis, 3 horas no Básico, 1 hora no Pro e 30 minutos no Turbo. Quando o preço cai, o aviso sai na mesma rodada.",
+  },
+  {
+    p: "O Olheiro muda o preço dos meus anúncios?",
+    r: "Só se você pedir. No plano Turbo dá pra ligar o ajuste automático em cada anúncio: ele acompanha o concorrente mais barato, mas nunca passa do preço mínimo que você definir nem do seu custo. Sem isso ligado, o Olheiro só lê.",
+  },
+  {
+    p: "Posso testar antes de pagar?",
+    r: "Pode. O plano Grátis não tem prazo, e o Pro tem 7 dias de teste sem cartão. No fim do teste você volta pro Grátis sozinho, sem cobrança.",
   },
   {
     p: "Funciona com Shopee, Amazon e Magalu?",
     r: "Por enquanto, só Mercado Livre. As próximas integrações vão seguir o que os vendedores mais pedirem no cadastro.",
   },
   {
-    p: "Como eu cancelo o Pro?",
-    r: "Na tela de plano, com um toque, ou pelo app do Mercado Pago. Não tem multa, e você continua no Pro até o fim do mês já pago.",
+    p: "Como eu cancelo a assinatura?",
+    r: "Na tela de plano, com um toque, ou pelo app do Mercado Pago. Não tem multa, e você continua no plano até o fim do período já pago.",
   },
   {
     p: "Preciso deixar o app aberto pra receber os avisos?",

@@ -28,6 +28,8 @@ export default function Privacidade() {
           nem dados pessoais dos seus compradores além do que vem no pedido.
         </li>
         <li><strong>Concorrentes que você cadastra:</strong> links, títulos, vendedores e o histórico de preços desses anúncios públicos.</li>
+        <li><strong>Custos que você informa:</strong> custo, impostos, frete e margem dos seus produtos, usados só pra calcular a sugestão de preço e os limites do ajuste automático.</li>
+        <li><strong>Indicação:</strong> se você criou a conta pelo link de outra pessoa, guardamos quem indicou, pra dar o bônus a ela.</li>
         <li><strong>Telegram, se você conectar:</strong> o identificador da conversa com o nosso bot, pra enviar os avisos.</li>
         <li>
           <strong>Pagamento:</strong> a assinatura é processada pelo Mercado Pago. Guardamos só o identificador e o status

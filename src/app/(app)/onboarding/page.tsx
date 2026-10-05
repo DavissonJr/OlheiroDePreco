@@ -13,6 +13,7 @@ import { Logo } from "@/components/ui/logo";
 import { MARKETPLACES, type Marketplace } from "@/lib/types";
 import { primeiroNome } from "@/lib/format";
 import { hrefConectarML } from "@/lib/demo";
+import { PLANOS, planoMinimo } from "@/lib/planos";
 
 const ETAPAS = ["Onde você vende", "Mercado Livre", "Avisos"];
 
@@ -104,7 +105,7 @@ export default function Onboarding() {
               <h1 className="text-3xl font-bold sm:text-4xl">
                 {perfil?.nome && !demo ? `${primeiroNome(perfil.nome)}, onde você vende?` : "Onde você vende?"}
               </h1>
-              <p className="mt-2 text-muted">Marque todos. O Mercado Livre já funciona; os outros chegam na ordem que vocês pedirem.</p>
+              <p className="mt-2 text-muted">Marque todos. Por enquanto o Olheiro funciona só com o Mercado Livre; os outros chegam na ordem que vocês pedirem.</p>
 
               <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {MARKETPLACES.map((m) => {
@@ -171,7 +172,7 @@ export default function Onboarding() {
                   </li>
                 ))}
                 <li className="border-t border-line pt-3 text-sm text-muted">
-                  O Olheiro não altera preços nem anúncios e nunca vê sua senha.
+                  O Olheiro nunca vê sua senha e só muda o preço de um anúncio se você ligar o ajuste automático nele.
                 </li>
               </ul>
 
@@ -218,7 +219,7 @@ export default function Onboarding() {
                   </span>
                   <div className="flex-1">
                     <p className="font-semibold">Telegram</p>
-                    <p className="text-sm text-muted">Chega na hora, com o celular bloqueado. Plano Pro.</p>
+                    <p className="text-sm text-muted">Chega na hora, com o celular bloqueado. A partir do plano {PLANOS[planoMinimo("telegram")].nome}.</p>
                   </div>
                   {perfil?.telegram_conectado ? (
                     <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-up">

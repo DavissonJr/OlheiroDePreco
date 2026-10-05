@@ -48,23 +48,27 @@ src/
     entrar/  nova-senha/      login, cadastro e troca de senha
     termos/  privacidade/     Termos de Uso e Política de Privacidade (LGPD)
     (app)/onboarding/         configuração inicial em 3 etapas
-    (app)/painel/             visão geral, concorrentes, avisos, plano, conta
+    (app)/painel/             visão geral, concorrentes, produtos, avisos, plano, conta
     api/ml/                   conexão com o Mercado Livre, sincronização e webhook
-    api/concorrentes/         adicionar concorrente (confere o limite do plano)
-    api/cron/precos/          conferência de preços (chamada pelo agendador)
+    api/concorrentes/         adicionar concorrente (confere o limite do plano) e sugestões
+    api/cron/precos/          conferência de preços, compra rápida e ajuste automático
+    api/cron/emails/          avisos agrupados do dia e resumo semanal
     api/telegram/             código de conexão e webhook do bot
-    api/assinatura/           assinar e cancelar o Pro (Mercado Pago)
+    api/assinatura/           assinar, trocar e cancelar planos (Mercado Pago) e teste grátis
     api/mercadopago/webhook/  mudanças de status da assinatura
     api/conta/excluir/        exclusão de conta
     api/saude/                mostra o que falta configurar
   components/                 interface (ui/, app/, charts/, landing/, site/)
   lib/
     ml.ts                     cliente da API do Mercado Livre
-    verificador.ts            conferir preços e disparar avisos
-    planos.ts                 limites e preços dos planos (mude aqui)
+    verificador.ts            conferir preços, estoque, compra rápida, ajuste automático e avisos
+    resumo.ts                 e-mail diário de avisos e resumo semanal
+    margem.ts                 contas de lucro, sugestão de preço e limites do ajuste
+    planos.ts                 limites, preços e recursos de cada plano (mude aqui)
     demo-data.ts              dados da demonstração
 supabase/
   schema.sql                  tabelas e regras de segurança
+  atualizacao-01-recursos.sql planos novos, regras, custos, ajuste automático, indicação
   agendador.sql               rotinas agendadas (rodar depois de publicar)
   emails/                     modelos de e-mail em português
 scripts/testar-ml.mjs         teste da API de preços do Mercado Livre

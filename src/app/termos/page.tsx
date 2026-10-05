@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PaginaLegal } from "@/components/site/pagina-legal";
 import { CONTATO_EMAIL, RESPONSAVEL } from "@/lib/config";
-import { PLANOS } from "@/lib/planos";
+import { DIAS_BONUS_INDICACAO, DIAS_TESTE, MESES_COBRADOS_NO_ANUAL, PLANO_TESTE, PLANOS, PLANOS_PAGOS, descreverIntervalo } from "@/lib/planos";
 import { reais } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Termos de Uso" };
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Termos de Uso" };
 // Modelo inicial. Revise com um advogado antes de ter clientes pagantes.
 export default function Termos() {
   return (
-    <PaginaLegal titulo="Termos de Uso" atualizado="30 de setembro de 2026">
+    <PaginaLegal titulo="Termos de Uso" atualizado="5 de outubro de 2026">
       <p>
         Estes termos valem pro uso do Olheiro de Preço, serviço oferecido por <strong>{RESPONSAVEL}</strong>. Ao criar
         uma conta, você concorda com eles e com a <Link href="/privacidade">Política de Privacidade</Link>.
@@ -19,8 +19,14 @@ export default function Termos() {
       <h2>O que o serviço faz</h2>
       <p>
         O Olheiro de Preço mostra um resumo das suas vendas no Mercado Livre e acompanha o preço de anúncios de
-        concorrentes que você escolher, avisando quando esse preço muda. O serviço só lê informações: ele não altera
-        seus anúncios, preços ou pedidos.
+        concorrentes que você escolher, avisando quando esse preço muda. Por padrão, o serviço só lê informações e
+        não altera seus anúncios, preços ou pedidos.
+      </p>
+      <p>
+        A exceção é o <strong>ajuste automático de preço</strong> do plano {PLANOS.turbo.nome}: se você ligar esse recurso
+        num anúncio, o Olheiro muda o preço dele no Mercado Livre pra acompanhar o concorrente mais barato, sempre entre
+        o preço mínimo e o máximo que você definir. Você pode desligar quando quiser, e cada ajuste fica registrado e é
+        avisado a você. Os limites são sua responsabilidade: confira se o preço mínimo cobre todos os seus custos.
       </p>
 
       <h2>Sua conta</h2>
@@ -34,12 +40,25 @@ export default function Termos() {
       <ul>
         <li>O plano {PLANOS.gratis.nome} é gratuito, com os limites descritos na página de preços.</li>
         <li>
-          O plano {PLANOS.pro.nome} custa {reais(PLANOS.pro.preco)} por mês, cobrados de forma recorrente pelo Mercado Pago
-          até você cancelar.
+          Os planos pagos ({PLANOS_PAGOS.map((p) => `${PLANOS[p].nome}, ${reais(PLANOS[p].preco)} por mês`).join("; ")}) são
+          cobrados de forma recorrente pelo Mercado Pago até você cancelar. No ciclo anual, você paga o equivalente a{" "}
+          {MESES_COBRADOS_NO_ANUAL} meses de uma vez e usa por 12.
         </li>
         <li>
-          Você pode cancelar a qualquer momento pela tela de plano ou pelo Mercado Pago. O acesso ao Pro continua até o fim
-          do período já pago, e não há multa.
+          Cada conta pode usar uma vez o teste grátis de {DIAS_TESTE} dias do plano {PLANOS[PLANO_TESTE].nome}, sem cartão.
+          Quando o teste acaba, a conta volta pro plano {PLANOS.gratis.nome} sem nenhuma cobrança.
+        </li>
+        <li>
+          Quando alguém que você indicou pelo seu link assina um plano pago pela primeira vez, você ganha{" "}
+          {DIAS_BONUS_INDICACAO} dias de {PLANOS.pro.nome}. O bônus não vale dinheiro e não pode ser transferido. Indicações
+          falsas ou feitas pra si mesmo podem ser canceladas.
+        </li>
+        <li>
+          Ao trocar de plano com a assinatura ativa, o novo plano vale na hora e o novo valor, a partir da próxima cobrança.
+        </li>
+        <li>
+          Você pode cancelar a qualquer momento pela tela de plano ou pelo Mercado Pago. O acesso ao plano continua até o
+          fim do período já pago, e não há multa.
         </li>
         <li>
           Pelo Código de Defesa do Consumidor, você pode desistir em até 7 dias após a primeira contratação e receber o
@@ -62,7 +81,7 @@ export default function Termos() {
           podem atrasar ou ficar indisponíveis.
         </li>
         <li>
-          Os preços são conferidos em intervalos (a cada 6 horas no Grátis e a cada hora no Pro), então o aviso não é
+          Os preços são conferidos em intervalos ({(["gratis", ...PLANOS_PAGOS] as const).map((p) => `a cada ${descreverIntervalo(PLANOS[p].intervaloHoras)} no ${PLANOS[p].nome}`).join(", ")}), então o aviso não é
           instantâneo em relação à mudança feita pelo concorrente.
         </li>
         <li>

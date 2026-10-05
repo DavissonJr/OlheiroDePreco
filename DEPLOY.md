@@ -55,8 +55,11 @@ A Cloudflare só liga o site ao seu domínio se ela cuidar do DNS dele.
 
 1. Abra **SQL Editor > New query**.
 2. Cole todo o conteúdo de `supabase/schema.sql` e clique em **Run**.
-3. Em **Table Editor**, confira se apareceram 7 tabelas: `profiles`,
-   `ml_contas`, `produtos`, `vendas`, `concorrentes`, `historico_precos` e `alertas`.
+3. Abra outra query, cole `supabase/atualizacao-01-recursos.sql` e clique em **Run**.
+   Se você já tinha rodado o `schema.sql` antes, rode só este.
+4. Em **Table Editor**, confira se apareceram 8 tabelas: `profiles`,
+   `ml_contas`, `produtos`, `vendas`, `concorrentes`, `historico_precos`,
+   `alertas` e `ajustes_preco`.
 
 ### 2.3 Copiar as chaves
 
@@ -179,7 +182,8 @@ cadastre as variáveis que o servidor usa **enquanto o site roda**. Use o tipo
 | `TELEGRAM_BOT_TOKEN` | Secret | etapa 8 |
 | `TELEGRAM_WEBHOOK_SECRET` | Secret | gere com `openssl rand -hex 32` |
 | `MP_ACCESS_TOKEN` | Secret | etapa 9 |
-| `CONFERENCIA_LOTE` | Text | `10` no plano gratuito; apague no plano pago |
+| `CONFERENCIA_LOTE` | Text | `8` no plano gratuito; apague no plano pago |
+| `RESUMO_LOTE` | Text | `8` no plano gratuito; apague no plano pago |
 
 Cadastre também as mesmas `NEXT_PUBLIC_...` da tabela anterior, como Text.
 Não custa nada e evita surpresa no servidor.
@@ -203,7 +207,7 @@ deploy (**Deployments > Retry deployment**, ou um `git push`).
 ### 5.4 Passar pro plano pago (antes de abrir pra clientes)
 
 Em **Workers & Pages > Plans**, assine o **Workers Paid** (US$ 5/mês). Depois,
-apague a variável `CONFERENCIA_LOTE`.
+apague as variáveis `CONFERENCIA_LOTE` e `RESUMO_LOTE`.
 
 ## Etapa 6: Conferir
 
@@ -217,7 +221,10 @@ Qualquer conta do Mercado Livre serve pra criar a aplicação.
 1. Em https://developers.mercadolivre.com.br, vá em **Minhas aplicações > Criar aplicação**.
 2. **URI de redirect:** `https://SEU-DOMINIO/api/ml/callback`
 3. Ative **PKCE**.
-4. Permissões: leitura, acesso offline e pedidos/vendas.
+4. Permissões: leitura, **escrita**, acesso offline e pedidos/vendas.
+   A escrita é usada só pelo ajuste automático de preço (plano Turbo), e só nos
+   anúncios em que o vendedor ligar o recurso. Sem ela, o ajuste é desligado
+   sozinho no primeiro erro e o vendedor recebe um aviso.
 5. **Notificações:** URL `https://SEU-DOMINIO/api/ml/webhook`, tópicos `orders_v2` e `items`.
 6. Copie o *App ID* e a *Secret Key* pras variáveis `ML_APP_ID` e `ML_APP_SECRET` (etapa 5.2).
 7. **Teste a leitura de preços de concorrentes** (é o coração do produto):
@@ -268,7 +275,15 @@ A resposta deve ter `"ok":true`. Opcional, no BotFather: `/setuserpic` com
 curl -H "Authorization: Bearer SEU_CRON_SECRET" https://SEU-DOMINIO/api/cron/precos
 ```
 
-A resposta deve ser algo como `{"verificados":0,"avisos":0}`.
+A resposta deve ser algo como `{"verificados":0,"avisos":0,"ajustes":0,"catalogo":0}`.
+
+E a rotina diária de e-mails (avisos agrupados e resumo semanal):
+
+```bash
+curl -H "Authorization: Bearer SEU_CRON_SECRET" https://SEU-DOMINIO/api/cron/emails
+```
+
+Resposta esperada: `{"avisos":0,"resumos":0}`.
 
 ## Etapa 11: Teste final
 
@@ -280,7 +295,13 @@ Faça tudo com uma conta de teste antes de divulgar:
 - [ ] Conectar o Mercado Livre (usuário de teste) e ver o painel com vendas
 - [ ] Adicionar um concorrente e ver o preço aparecer
 - [ ] Rodar o agendador na mão (etapa 10) sem erro
-- [ ] Assinar o Pro em modo teste e ver o plano mudar
+- [ ] Começar o teste grátis de 7 dias do Pro e ver o plano mudar
+- [ ] Assinar o Básico em modo teste, trocar pro Pro e ver o plano mudar
+- [ ] Criar outra conta pelo link de indicação, assinar com ela e ver o bônus na primeira
+- [ ] Em Produtos, preencher o custo de um anúncio e ver a sugestão de preço
+- [ ] Em Concorrentes, buscar concorrentes parecidos e acompanhar um
+- [ ] (Turbo, com usuário de teste) Ligar o ajuste automático e rodar o agendador
+- [ ] Exportar vendas e histórico em Conta e abrir no Excel
 - [ ] Conectar o Telegram e receber a mensagem de boas-vindas do bot
 - [ ] Cancelar a assinatura na tela de plano
 - [ ] Excluir a conta de teste em Conta > Excluir conta
