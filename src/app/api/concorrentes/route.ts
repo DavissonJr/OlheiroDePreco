@@ -14,6 +14,10 @@ export async function POST(req: Request) {
   }
 
   const sb = supabaseAdmin();
+  if (meuItemId) {
+    const { data: meu } = await sb.from("produtos").select("id").eq("id", meuItemId).eq("user_id", user.id).maybeSingle();
+    if (!meu) return NextResponse.json({ erro: "Esse anúncio não é da sua conta." }, { status: 400 });
+  }
   const { data: perfil } = await sb.from("profiles").select("plano").eq("id", user.id).single();
   const plano = (perfil?.plano ?? "gratis") as PlanoId;
   const { count } = await sb.from("concorrentes").select("id", { count: "exact", head: true }).eq("user_id", user.id);
@@ -39,6 +43,8 @@ export async function POST(req: Request) {
       thumbnail: item.thumbnail,
       permalink: item.permalink,
       preco_atual: item.preco,
+      estoque: item.estoque,
+      sem_estoque: item.estoque === 0,
       ultima_verificacao: new Date().toISOString(),
       proxima_verificacao: new Date(Date.now() + PLANOS[plano].intervaloHoras * 3600000).toISOString(),
     }).select().single();

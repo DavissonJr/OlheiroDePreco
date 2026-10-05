@@ -1,7 +1,7 @@
 // Cliente da API do Mercado Livre (servidor).
 // Documentação: https://developers.mercadolivre.com.br
 import { supabaseAdmin } from "./supabase/server";
-import type { ItemVenda } from "./types";
+import type { ItemVenda, Sugestao } from "./types";
 
 const API = "https://api.mercadolibre.com";
 export const ML_AUTH_URL = "https://auth.mercadolivre.com.br/authorization";
@@ -78,6 +78,16 @@ export async function mlGet<T>(caminho: string, token?: string): Promise<T> {
   return res.json();
 }
 
+async function mlPut<T>(caminho: string, corpo: unknown, token: string): Promise<T> {
+  const res = await fetch(`${API}${caminho}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(corpo),
+  });
+  if (!res.ok) throw new Error(`PUT ${caminho} falhou (${res.status}): ${await res.text()}`);
+  return res.json();
+}
+
 // Aceita links como:
 //   https://produto.mercadolivre.com.br/MLB-1234567890-nome-do-produto-_JM
 //   https://www.mercadolivre.com.br/nome/p/MLB12345678   (página de catálogo)
@@ -99,6 +109,7 @@ export interface ItemML {
   permalink: string | null;
   vendedorId: number | null;
   estoque: number | null;
+  catalogoId: string | null;
 }
 
 interface ItemBruto {
@@ -109,6 +120,8 @@ interface ItemBruto {
   permalink?: string;
   seller_id?: number;
   available_quantity?: number;
+  catalog_product_id?: string | null;
+  status?: string;
 }
 
 function mapearItem(b: ItemBruto): ItemML {
@@ -120,6 +133,7 @@ function mapearItem(b: ItemBruto): ItemML {
     permalink: b.permalink ?? null,
     vendedorId: b.seller_id ?? null,
     estoque: b.available_quantity ?? null,
+    catalogoId: b.catalog_product_id ?? null,
   };
 }
 
@@ -138,9 +152,95 @@ export async function precoDeVenda(itemId: string, token: string): Promise<numbe
   }
 }
 
+// Preço e estoque de um anúncio de concorrente, numa rodada da conferência.
+// Pausado, encerrado ou com estoque zero conta como "sem estoque".
+export async function lerAnuncio(itemId: string, token: string) {
+  const preco = await precoDeVenda(itemId, token);
+  try {
+    const r = await mlGet<ItemBruto>(`/items/${itemId}?attributes=available_quantity,status`, token);
+    const estoque = r.available_quantity ?? null;
+    return { preco, estoque, semEstoque: r.status !== "active" || estoque === 0 };
+  } catch {
+    return { preco, estoque: null, semEstoque: false };
+  }
+}
+
+// Quem está ganhando a compra rápida de um produto de catálogo agora.
+export async function vencedorCatalogo(catalogoId: string, token: string) {
+  const p = await mlGet<{ buy_box_winner?: { item_id: string; price: number; seller_id?: number } | null }>(
+    `/products/${catalogoId}`,
+    token,
+  );
+  return p.buy_box_winner ?? null;
+}
+
+// Muda o preço de um anúncio do próprio vendedor (ajuste automático).
+// Precisa da permissão de escrita na aplicação do Mercado Livre.
+export async function alterarPreco(itemId: string, preco: number, token: string) {
+  return mlPut<{ id: string; price: number }>(`/items/${itemId}`, { price: preco }, token);
+}
+
+// Sugere anúncios parecidos com um anúncio do vendedor.
+// Com catálogo, lista quem vende o mesmo produto; sem catálogo, busca pelo título.
+export async function buscarParecidos(
+  produto: { titulo: string; catalogo_id: string | null },
+  mlUserId: number,
+  token: string,
+): Promise<Sugestao[]> {
+  let sugestoes: Sugestao[] = [];
+
+  if (produto.catalogo_id) {
+    try {
+      const r = await mlGet<{ results: { item_id: string; price: number; seller_id: number }[] }>(
+        `/products/${produto.catalogo_id}/items?limit=20`,
+        token,
+      );
+      const outros = (r.results ?? []).filter((x) => x.seller_id !== mlUserId);
+      if (outros.length) {
+        const detalhes = await mlGet<{ code: number; body: ItemBruto }[]>(
+          `/items?ids=${outros.map((x) => x.item_id).join(",")}&attributes=id,title,price,thumbnail,permalink`,
+          token,
+        );
+        const porId = new Map(detalhes.filter((d) => d.code === 200).map((d) => [d.body.id, d.body]));
+        sugestoes = outros.map((x) => {
+          const d = porId.get(x.item_id);
+          return {
+            item_id: x.item_id,
+            titulo: d?.title ?? produto.titulo,
+            preco: x.price,
+            vendedor: null,
+            thumbnail: d?.thumbnail?.replace("http://", "https://") ?? null,
+            permalink: d?.permalink ?? null,
+          };
+        });
+      }
+    } catch {}
+  }
+
+  if (!sugestoes.length) {
+    // Os primeiros termos do título costumam ser o que identifica o produto.
+    const termos = produto.titulo.split(/\s+/).slice(0, 6).join(" ");
+    const r = await mlGet<{
+      results: { id: string; title: string; price: number; thumbnail?: string; permalink?: string; seller?: { id: number; nickname?: string } }[];
+    }>(`/sites/MLB/search?q=${encodeURIComponent(termos)}&limit=20`, token);
+    sugestoes = (r.results ?? [])
+      .filter((x) => x.seller?.id !== mlUserId)
+      .map((x) => ({
+        item_id: x.id,
+        titulo: x.title,
+        preco: x.price,
+        vendedor: x.seller?.nickname ?? null,
+        thumbnail: x.thumbnail?.replace("http://", "https://") ?? null,
+        permalink: x.permalink ?? null,
+      }));
+  }
+
+  return sugestoes.sort((a, b) => a.preco - b.preco).slice(0, 12);
+}
+
 export async function buscarItem(itemId: string, token: string): Promise<ItemML> {
   const bruto = await mlGet<ItemBruto>(
-    `/items/${itemId}?attributes=id,title,price,thumbnail,permalink,seller_id,available_quantity`,
+    `/items/${itemId}?attributes=id,title,price,thumbnail,permalink,seller_id,available_quantity,catalog_product_id`,
     token,
   );
   const item = mapearItem(bruto);
@@ -173,7 +273,7 @@ export async function meusItens(mlUserId: number, token: string): Promise<ItemML
   for (let i = 0; i < ids.length; i += 20) {
     const lote = ids.slice(i, i + 20).join(",");
     const r = await mlGet<{ code: number; body: ItemBruto }[]>(
-      `/items?ids=${lote}&attributes=id,title,price,thumbnail,permalink,available_quantity`,
+      `/items?ids=${lote}&attributes=id,title,price,thumbnail,permalink,available_quantity,catalog_product_id`,
       token,
     );
     for (const x of r) if (x.code === 200) itens.push(mapearItem(x.body));
@@ -244,6 +344,7 @@ export async function sincronizarConta(userId: string) {
         thumbnail: i.thumbnail,
         permalink: i.permalink,
         estoque: i.estoque,
+        catalogo_id: i.catalogoId,
         atualizado_em: new Date().toISOString(),
       })),
     );

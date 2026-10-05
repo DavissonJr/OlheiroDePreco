@@ -1,4 +1,4 @@
-import type { PlanoId } from "./planos";
+import type { Ciclo, PlanoId } from "./planos";
 
 export type Marketplace = "mercadolivre" | "shopee" | "amazon" | "magalu" | "aliexpress";
 
@@ -16,13 +16,23 @@ export interface Perfil {
   email: string | null;
   marketplaces: Marketplace[];
   plano: PlanoId;
-  // Até quando o Pro vale depois de um cancelamento (fim do período pago).
+  // Até quando o plano pago vale depois de um cancelamento (fim do período pago).
   pro_ate: string | null;
   assinatura_ativa: boolean;
+  assinatura_plano: PlanoId | null;
+  assinatura_ciclo: Ciclo | null;
+  // Teste grátis e bônus de indicação
+  teste_usado: boolean;
+  cortesia_ate: string | null;
+  codigo_indicacao: string | null;
+  indicacoes_ok: number;
   ml_nickname: string | null;
   telegram_conectado: boolean;
   alerta_email: boolean;
   alerta_telegram: boolean;
+  email_frequencia: "na_hora" | "diario";
+  resumo_semanal: boolean;
+  interesse_whatsapp: boolean;
   onboarding_ok: boolean;
 }
 
@@ -33,7 +43,29 @@ export interface Produto {
   thumbnail: string | null;
   permalink: string | null;
   estoque: number | null;
+  // Custos pra sugestão de preço (vazio = não informado)
+  custo: number | null;
+  imposto_pct: number | null;
+  frete: number | null;
+  tarifa_pct: number | null;
+  custo_fixo: number | null;
+  margem_min_pct: number | null;
+  // Catálogo / compra rápida
+  catalogo_id: string | null;
+  buybox_ganhando: boolean | null;
+  buybox_vencedor: string | null;
+  buybox_preco: number | null;
+  buybox_verificado_em: string | null;
+  // Ajuste automático de preço
+  repricing_ativo: boolean;
+  repricing_piso: number | null;
+  repricing_teto: number | null;
+  repricing_diferenca: number;
+  repricing_ultimo_em: string | null;
 }
+
+export type CamposCusto = "custo" | "imposto_pct" | "frete" | "tarifa_pct" | "custo_fixo" | "margem_min_pct";
+export type CamposRepricing = "repricing_ativo" | "repricing_piso" | "repricing_teto" | "repricing_diferenca";
 
 export interface ItemVenda {
   item_id: string;
@@ -63,6 +95,32 @@ export interface Concorrente {
   preco_anterior: number | null;
   ultima_verificacao: string | null;
   created_at: string;
+  estoque: number | null;
+  sem_estoque: boolean;
+  // Regras de aviso (vazio = avisa toda mudança)
+  regra_queda_pct: number | null;
+  regra_abaixo_de: number | null;
+  regra_so_abaixo_do_meu: boolean;
+}
+
+export type CamposRegra = "regra_queda_pct" | "regra_abaixo_de" | "regra_so_abaixo_do_meu";
+
+export interface Sugestao {
+  item_id: string;
+  titulo: string;
+  preco: number;
+  vendedor: string | null;
+  thumbnail: string | null;
+  permalink: string | null;
+}
+
+export interface AjustePreco {
+  id: number;
+  produto_id: string;
+  preco_antigo: number;
+  preco_novo: number;
+  motivo: string;
+  created_at: string;
 }
 
 export interface PontoPreco {
@@ -70,7 +128,15 @@ export interface PontoPreco {
   registrado_em: string;
 }
 
-export type TipoAlerta = "queda" | "abaixo_do_meu" | "subiu";
+export type TipoAlerta =
+  | "queda"
+  | "abaixo_do_meu"
+  | "subiu"
+  | "sem_estoque"
+  | "voltou_estoque"
+  | "buybox_perdida"
+  | "buybox_ganha"
+  | "ajuste_preco";
 
 export interface Alerta {
   id: string;
