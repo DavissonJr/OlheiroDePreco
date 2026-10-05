@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
-import { BellRing, TrendingDown, TrendingUp } from "lucide-react";
+import { BellRing, PackageX, PackageCheck, ShoppingCart, TrendingDown, TrendingUp, Wand2 } from "lucide-react";
 import { useDados } from "@/components/app/dados";
 import { Cabecalho } from "@/components/app/cabecalho";
 import { CanaisAviso } from "@/components/app/canais-aviso";
@@ -11,7 +11,7 @@ import { Botao } from "@/components/ui/botao";
 import { Etiqueta } from "@/components/ui/etiqueta";
 import { Esqueleto } from "@/components/ui/esqueleto";
 import { tempoRelativo } from "@/lib/format";
-import type { Alerta } from "@/lib/types";
+import type { Alerta, TipoAlerta } from "@/lib/types";
 
 function grupoDoDia(iso: string) {
   const d = new Date(iso);
@@ -24,10 +24,15 @@ function grupoDoDia(iso: string) {
   return "Mais antigos";
 }
 
-const ICONES = {
+const ICONES: Record<TipoAlerta, { icone: typeof TrendingDown; classe: string; rotulo: string }> = {
   abaixo_do_meu: { icone: TrendingDown, classe: "bg-drop-soft text-drop", rotulo: "Ficou mais barato que você" },
   queda: { icone: TrendingDown, classe: "bg-tag/25 text-tag-ink dark:text-tag", rotulo: "Baixou o preço" },
   subiu: { icone: TrendingUp, classe: "bg-up-soft text-up", rotulo: "Subiu o preço" },
+  sem_estoque: { icone: PackageX, classe: "bg-up-soft text-up", rotulo: "Concorrente sem estoque" },
+  voltou_estoque: { icone: PackageCheck, classe: "bg-surface-2 text-muted", rotulo: "Concorrente voltou a ter estoque" },
+  buybox_perdida: { icone: ShoppingCart, classe: "bg-drop-soft text-drop", rotulo: "Perdeu a compra rápida" },
+  buybox_ganha: { icone: ShoppingCart, classe: "bg-up-soft text-up", rotulo: "Ganhou a compra rápida" },
+  ajuste_preco: { icone: Wand2, classe: "bg-cobalt-soft text-cobalt", rotulo: "Ajuste automático" },
 };
 
 export default function Avisos() {
@@ -93,7 +98,7 @@ export default function Avisos() {
                             <p className={clsx("mt-1 max-w-[60ch]", a.lido ? "text-muted" : "text-ink")}>{a.mensagem}</p>
                             {a.preco_novo != null && (
                               <div className="mt-3">
-                                <Etiqueta valor={a.preco_novo} riscado={a.preco_antigo} tom={a.tipo === "abaixo_do_meu" ? "drop" : a.tipo === "subiu" ? "quiet" : "rival"} tamanho="sm" />
+                                <Etiqueta valor={a.preco_novo} riscado={a.preco_antigo} tom={a.tipo === "abaixo_do_meu" || a.tipo === "buybox_perdida" ? "drop" : a.tipo === "subiu" ? "quiet" : a.tipo === "ajuste_preco" ? "mine" : "rival"} tamanho="sm" />
                               </div>
                             )}
                           </div>
@@ -110,7 +115,10 @@ export default function Avisos() {
         <aside>
           <h2 className="mb-3 font-sans text-sm font-semibold tracking-normal text-muted">Onde avisar</h2>
           <CanaisAviso />
-          <p className="mt-3 px-1 text-sm text-muted">Aumentos de preço ficam só aqui no app. Quedas vão também pro Telegram e e-mail.</p>
+          <p className="mt-3 px-1 text-sm text-muted">
+            Aumentos de preço ficam só aqui no app. Quedas, concorrente sem estoque e compra rápida perdida vão também pro Telegram e e-mail.
+            Avisos da mesma conferência chegam juntos, numa mensagem só.
+          </p>
         </aside>
       </div>
     </>
