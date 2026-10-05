@@ -37,6 +37,11 @@ export default function Entrar() {
     const q = new URLSearchParams(window.location.search);
     /* eslint-disable react-hooks/set-state-in-effect */
     if (q.get("criar")) setAba("criar");
+    // Link de indicação (?ref=codigo): guarda pra usar no cadastro, mesmo se a pessoa navegar antes.
+    const ref = q.get("ref");
+    try {
+      if (ref && /^[a-z0-9]{4,16}$/i.test(ref)) localStorage.setItem("olheiro-ref", ref.toLowerCase());
+    } catch {}
     if (q.get("link") === "expirado") setErro("Esse link expirou ou já foi usado. Peça um novo.");
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -52,10 +57,14 @@ export default function Entrar() {
     setEnviando(true);
     const sb = supabaseNavegador();
     if (aba === "criar") {
+      let ref: string | null = null;
+      try {
+        ref = localStorage.getItem("olheiro-ref");
+      } catch {}
       const { data, error } = await sb.auth.signUp({
         email,
         password: senha,
-        options: { data: { nome }, emailRedirectTo: `${SITE_URL}/auth/callback?proximo=/onboarding` },
+        options: { data: { nome, ...(ref ? { ref } : {}) }, emailRedirectTo: `${SITE_URL}/auth/callback?proximo=/onboarding` },
       });
       setEnviando(false);
       if (error) return setErro(traduzirErro(error.message));

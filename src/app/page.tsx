@@ -5,7 +5,7 @@ import { BotaoLink } from "@/components/ui/botao";
 import { Etiqueta } from "@/components/ui/etiqueta";
 import { CenaHero } from "@/components/landing/cena-hero";
 import { Duvidas } from "@/components/landing/duvidas";
-import { PLANOS } from "@/lib/planos";
+import { DIAS_TESTE, MESES_COBRADOS_NO_ANUAL, PLANOS } from "@/lib/planos";
 import { Rodape } from "@/components/site/rodape";
 
 const PASSOS = [
@@ -127,30 +127,32 @@ export default function Inicio() {
           <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 lg:py-24">
             <h2 className="text-3xl font-bold sm:text-[40px]">Preços</h2>
             <p className="mt-3 max-w-[52ch] text-lg text-muted">
-              Comece de graça. Se um único aviso te fizer ajustar o preço a tempo, o Pro já se pagou.
+              Comece de graça. Se um único aviso te fizer ajustar o preço a tempo, o plano já se pagou.
+              Teste o Pro por {DIAS_TESTE} dias sem cartão, e no anual você paga {MESES_COBRADOS_NO_ANUAL} meses e leva 12.
             </p>
-            <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
-              {(["gratis", "pro"] as const).map((id) => {
+            <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+              {(["gratis", "basico", "pro", "turbo"] as const).map((id) => {
                 const p = PLANOS[id];
                 const pro = id === "pro";
+                const pago = id !== "gratis";
                 return (
                   <div
                     key={id}
-                    className={pro ? "rounded-[26px] bg-bg p-7 ring-2 ring-cobalt sm:p-9" : "rounded-[26px] bg-bg p-7 ring-1 ring-line sm:p-9"}
+                    className={pro ? "flex flex-col rounded-[26px] bg-bg p-7 ring-2 ring-cobalt sm:p-9 xl:p-7" : "flex flex-col rounded-[26px] bg-bg p-7 ring-1 ring-line sm:p-9 xl:p-7"}
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                       <h3 className="text-2xl font-bold">{p.nome}</h3>
-                      {pro ? (
+                      {pago ? (
                         <Etiqueta valor={p.preco} tom="rival" tamanho="xl" />
                       ) : (
                         <span className="font-display text-[28px] font-extrabold num">R$ 0</span>
                       )}
                     </div>
-                    <p className="mt-1 text-muted">{pro ? "por mês, cancele quando quiser" : "pra sempre"}</p>
-                    <ul className="mt-7 space-y-3">
+                    <p className="mt-1 text-muted">{pago ? "por mês, cancele quando quiser" : "pra sempre"}</p>
+                    <ul className="mt-7 flex-1 space-y-3">
                       {p.recursos.map((r) => (
                         <li key={r} className="flex gap-3">
-                          <Check className={pro ? "mt-0.5 size-5 shrink-0 text-cobalt" : "mt-0.5 size-5 shrink-0 text-muted"} aria-hidden />
+                          <Check className={pago ? "mt-0.5 size-5 shrink-0 text-cobalt" : "mt-0.5 size-5 shrink-0 text-muted"} aria-hidden />
                           {r}
                         </li>
                       ))}
@@ -160,7 +162,7 @@ export default function Inicio() {
                       variante={pro ? "primario" : "secundario"}
                       className="mt-8 w-full"
                     >
-                      {pro ? "Começar com o Pro" : "Criar conta grátis"}
+                      {pro ? `Testar ${DIAS_TESTE} dias grátis` : pago ? `Começar com o ${p.nome}` : "Criar conta grátis"}
                     </BotaoLink>
                   </div>
                 );
