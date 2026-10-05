@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
-import { ClipboardPaste, ExternalLink, Lock, Plus, Trash2 } from "lucide-react";
+import { ClipboardPaste, ExternalLink, Lock, PackageX, Plus, Search, Trash2 } from "lucide-react";
 import { useDados } from "@/components/app/dados";
 import { Cabecalho } from "@/components/app/cabecalho";
 import { Gaveta } from "@/components/ui/gaveta";
@@ -13,11 +13,18 @@ import { Etiqueta } from "@/components/ui/etiqueta";
 import { Miniatura } from "@/components/ui/miniatura";
 import { Esqueleto } from "@/components/ui/esqueleto";
 import { useAviso } from "@/components/ui/aviso";
+import { Chave } from "@/components/ui/chave";
+import { CampoNumero } from "@/components/ui/campo-numero";
+import { RecursoBloqueado } from "@/components/app/recurso-bloqueado";
 import { MiniLinha } from "@/components/charts/mini-linha";
 import { LinhaPreco } from "@/components/charts/linha-preco";
-import { PLANOS } from "@/lib/planos";
+import { descreverIntervalo, PLANOS, PLANOS_PAGOS, temRecurso, type PlanoId } from "@/lib/planos";
 import { dataHora, reais, tempoRelativo } from "@/lib/format";
-import type { Concorrente, Produto } from "@/lib/types";
+import type { CamposRegra, Concorrente, Produto, Sugestao } from "@/lib/types";
+
+// Próximo plano com mais concorrentes que o atual (pra oferta de "aumentar limite").
+const proximoPlano = (plano: PlanoId) =>
+  PLANOS_PAGOS.find((p) => PLANOS[p].limiteConcorrentes > PLANOS[plano].limiteConcorrentes) ?? null;
 
 function Diferenca({ rival, meu }: { rival: number | null; meu: number | undefined }) {
   if (rival == null || meu == null) return null;
@@ -32,7 +39,7 @@ function Diferenca({ rival, meu }: { rival: number | null; meu: number | undefin
 
 export default function Concorrentes() {
   const avisar = useAviso();
-  const { carregando, perfil, produtos, concorrentes, historicos, limiteConcorrentes, adicionarConcorrente, removerConcorrente, demo } = useDados();
+  const { carregando, perfil, produtos, concorrentes, historicos, limiteConcorrentes, adicionarConcorrente, removerConcorrente, atualizarRegras, sugerirConcorrentes, demo } = useDados();
   const [adicionando, setAdicionando] = useState(false);
   const [detalhe, setDetalhe] = useState<Concorrente | null>(null);
 
@@ -71,7 +78,7 @@ export default function Concorrentes() {
         titulo="Concorrentes"
         descricao={
           <>
-            Preços conferidos a cada {PLANOS[plano].intervaloHoras === 1 ? "hora" : `${PLANOS[plano].intervaloHoras} horas`}.
+            Preços conferidos a cada {descreverIntervalo(PLANOS[plano].intervaloHoras)}.
             {ultima && <> Última conferência {tempoRelativo(ultima)}.</>}
           </>
         }
@@ -93,7 +100,7 @@ export default function Concorrentes() {
         <span className="whitespace-nowrap text-muted num">
           {concorrentes.length} de {limiteConcorrentes} no plano {PLANOS[plano].nome}
         </span>
-        {plano === "gratis" && (
+        {proximoPlano(plano) && (
           <Link href="/painel/planos" className="font-semibold text-cobalt hover:underline">Aumentar limite</Link>
         )}
       </div>
@@ -149,7 +156,13 @@ export default function Concorrentes() {
                           <div className="min-w-0">
                             <p className="truncate font-semibold">{c.vendedor ?? "Concorrente"}</p>
                             <p className="truncate text-sm text-muted">{c.titulo}</p>
-                            <Diferenca rival={c.preco_atual} meu={g.produto?.preco} />
+                            {c.sem_estoque ? (
+                              <span className="inline-flex items-center gap-1 text-sm font-semibold text-up">
+                                <PackageX className="size-3.5" aria-hidden /> Sem estoque
+                              </span>
+                            ) : (
+                              <Diferenca rival={c.preco_atual} meu={g.produto?.preco} />
+                            )}
                           </div>
                           <MiniLinha
                             valores={hist.map((h) => h.preco)}
@@ -172,13 +185,15 @@ export default function Concorrentes() {
         <FormAdicionar
           cheio={cheio}
           limite={limiteConcorrentes}
+          plano={plano}
           produtos={produtos}
           demo={demo}
-          aoAdicionar={async (link, meu) => {
+          sugerir={sugerirConcorrentes}
+          aoAdicionar={async (link, meu, fechar = true) => {
             const r = await adicionarConcorrente(link, meu);
             if (r.ok) {
               avisar("Concorrente adicionado. O Olheiro já está de olho no preço.");
-              setAdicionando(false);
+              if (fechar) setAdicionando(false);
             }
             return r;
           }}
@@ -191,6 +206,12 @@ export default function Concorrentes() {
             c={detalhe}
             meu={produtos.find((p) => p.id === detalhe.meu_item_id)}
             historico={historicos[detalhe.id] ?? []}
+            plano={plano}
+            aoMudarRegras={async (campos) => {
+              setDetalhe((d) => (d ? { ...d, ...campos } : d));
+              const r = await atualizarRegras(detalhe.id, campos);
+              if (!r.ok) avisar(r.erro, "erro");
+            }}
             aoRemover={async () => {
               await removerConcorrente(detalhe.id);
               setDetalhe(null);
@@ -206,35 +227,73 @@ export default function Concorrentes() {
 function FormAdicionar({
   cheio,
   limite,
+  plano,
   produtos,
   demo,
+  sugerir,
   aoAdicionar,
 }: {
   cheio: boolean;
   limite: number;
+  plano: PlanoId;
   produtos: Produto[];
   demo: boolean;
-  aoAdicionar: (link: string, meu: string | null) => Promise<{ ok: boolean; erro?: string; limite?: boolean }>;
+  sugerir: (produtoId: string) => Promise<{ ok: boolean; erro?: string; sugestoes?: Sugestao[] }>;
+  aoAdicionar: (link: string, meu: string | null, fechar?: boolean) => Promise<{ ok: boolean; erro?: string; limite?: boolean }>;
 }) {
   const [link, setLink] = useState("");
   const [meu, setMeu] = useState<string | null>(produtos[0]?.id ?? null);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [bateuLimite, setBateuLimite] = useState(false);
+  const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const [seguindo, setSeguindo] = useState<string | null>(null);
 
   if (cheio || bateuLimite) {
+    const prox = proximoPlano(plano);
     return (
       <div className="py-4">
         <span className="grid size-14 place-items-center rounded-2xl bg-tag/30 text-tag-ink dark:text-tag">
           <Lock className="size-7" aria-hidden />
         </span>
         <h3 className="mt-5 text-2xl font-bold">Você chegou aos {limite} concorrentes do seu plano</h3>
-        <p className="mt-2 text-muted">
-          No Pro você acompanha até {PLANOS.pro.limiteConcorrentes}, com preços conferidos a cada hora e aviso no Telegram.
-        </p>
-        <BotaoLink href="/painel/planos" className="mt-6 w-full">Ver o plano Pro</BotaoLink>
+        {prox ? (
+          <>
+            <p className="mt-2 text-muted">
+              No {PLANOS[prox].nome} você acompanha até {PLANOS[prox].limiteConcorrentes}, com preços conferidos a cada{" "}
+              {descreverIntervalo(PLANOS[prox].intervaloHoras)}.
+            </p>
+            <BotaoLink href="/painel/planos" className="mt-6 w-full">Ver os planos</BotaoLink>
+          </>
+        ) : (
+          <p className="mt-2 text-muted">Pare de acompanhar algum concorrente pra liberar espaço.</p>
+        )}
       </div>
     );
+  }
+
+  async function buscarSugestoes() {
+    if (!meu) return;
+    setErro(null);
+    setBuscando(true);
+    const r = await sugerir(meu);
+    setBuscando(false);
+    if (!r.ok) return setErro(r.erro ?? "Algo deu errado.");
+    setSugestoes(r.sugestoes ?? []);
+  }
+
+  async function seguir(s: Sugestao) {
+    setSeguindo(s.item_id);
+    // Pelo código, não pelo link: link de catálogo levaria pro vencedor da compra rápida.
+    const r = await aoAdicionar(s.item_id, meu, false);
+    setSeguindo(null);
+    if (!r.ok) {
+      if (r.limite) setBateuLimite(true);
+      else setErro(r.erro ?? "Algo deu errado.");
+      return;
+    }
+    setSugestoes((l) => l?.filter((x) => x.item_id !== s.item_id) ?? null);
   }
 
   async function colar() {
@@ -302,7 +361,7 @@ function FormAdicionar({
                     marcado ? "bg-cobalt-soft ring-2 ring-cobalt" : "ring-1 ring-line hover:bg-surface-2",
                   )}
                 >
-                  <input type="radio" name="meu" className="sr-only" checked={marcado} onChange={() => setMeu(id)} />
+                  <input type="radio" name="meu" className="sr-only" checked={marcado} onChange={() => { setMeu(id); setSugestoes(null); }} />
                   {p ? (
                     <>
                       <Miniatura titulo={p.titulo} src={p.thumbnail} className="size-9 shrink-0" />
@@ -317,6 +376,38 @@ function FormAdicionar({
             })}
           </div>
         </fieldset>
+      )}
+
+      {meu && (
+        <section className="rounded-xl bg-surface-2 p-4">
+          <p className="font-semibold">Não sabe quem são seus concorrentes?</p>
+          <p className="mt-0.5 text-sm text-muted">O Olheiro procura no Mercado Livre anúncios parecidos com o seu.</p>
+          {sugestoes == null ? (
+            <Botao type="button" variante="secundario" tamanho="sm" className="mt-3" carregando={buscando} icone={<Search className="size-4" aria-hidden />} onClick={buscarSugestoes}>
+              Buscar concorrentes
+            </Botao>
+          ) : sugestoes.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Não achamos anúncios parecidos. Cole o link de um concorrente acima.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {sugestoes.map((s) => (
+                <li key={s.item_id} className="flex items-center gap-3 rounded-xl bg-surface p-3 ring-1 ring-line">
+                  <Miniatura titulo={s.titulo} src={s.thumbnail} className="size-9 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-medium">{s.titulo}</p>
+                    <p className="truncate text-sm text-muted">
+                      {s.vendedor && <>{s.vendedor} · </>}
+                      <strong className="text-ink num">{reais(s.preco)}</strong>
+                    </p>
+                  </div>
+                  <Botao type="button" variante="secundario" tamanho="sm" carregando={seguindo === s.item_id} disabled={!!seguindo} onClick={() => seguir(s)}>
+                    Acompanhar
+                  </Botao>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       <AnimatePresence>
@@ -334,7 +425,21 @@ function FormAdicionar({
   );
 }
 
-function Detalhe({ c, meu, historico, aoRemover }: { c: Concorrente; meu?: Produto; historico: { preco: number; registrado_em: string }[]; aoRemover: () => Promise<void> }) {
+function Detalhe({
+  c,
+  meu,
+  historico,
+  plano,
+  aoMudarRegras,
+  aoRemover,
+}: {
+  c: Concorrente;
+  meu?: Produto;
+  historico: { preco: number; registrado_em: string }[];
+  plano: PlanoId;
+  aoMudarRegras: (campos: Partial<Pick<Concorrente, CamposRegra>>) => Promise<void>;
+  aoRemover: () => Promise<void>;
+}) {
   const [confirmar, setConfirmar] = useState(false);
   const [removendo, setRemovendo] = useState(false);
   const precos = historico.map((h) => h.preco);
@@ -347,7 +452,10 @@ function Detalhe({ c, meu, historico, aoRemover }: { c: Concorrente; meu?: Produ
         <Miniatura titulo={c.titulo} src={c.thumbnail} className="size-14 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-medium leading-snug">{c.titulo}</p>
-          <p className="mt-1 text-sm text-muted">Conferido {tempoRelativo(c.ultima_verificacao)}</p>
+          <p className="mt-1 text-sm text-muted">
+            Conferido {tempoRelativo(c.ultima_verificacao)}
+            {c.sem_estoque && <span className="ml-2 font-semibold text-up">Sem estoque agora</span>}
+          </p>
         </div>
       </div>
 
@@ -380,6 +488,44 @@ function Detalhe({ c, meu, historico, aoRemover }: { c: Concorrente; meu?: Produ
           <dd className="mt-0.5 font-bold">{historico[0] ? dataHora(historico[0].registrado_em).split(",")[0] : "—"}</dd>
         </div>
       </dl>
+
+      <section>
+        <h3 className="font-sans text-base font-bold tracking-normal">Quando avisar no Telegram e e-mail</h3>
+        {!temRecurso(plano, "regras") ? (
+          <RecursoBloqueado recurso="regras" className="mt-3" texto="Receba só os avisos que importam, como quedas de mais de 5%." />
+        ) : (
+          <div className="mt-3 space-y-3">
+            <p className="text-sm text-muted">Vazio = avisa toda queda. Com mais de uma regra, todas precisam bater. No app, o aviso aparece sempre.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <CampoNumero
+                id="regra-pct"
+                rotulo="Só se cair pelo menos"
+                sufixo="%"
+                placeholder="ex.: 5"
+                valor={c.regra_queda_pct}
+                aoMudar={(v) => aoMudarRegras({ regra_queda_pct: v })}
+              />
+              <CampoNumero
+                id="regra-abaixo"
+                rotulo="Só se ficar abaixo de"
+                prefixo="R$"
+                valor={c.regra_abaixo_de}
+                aoMudar={(v) => aoMudarRegras({ regra_abaixo_de: v })}
+              />
+            </div>
+            {meu && (
+              <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-4">
+                <p className="flex-1 text-[15px]">Só se ficar mais barato que o meu anúncio ({reais(meu.preco)})</p>
+                <Chave
+                  rotulo="Só avisar se passar o meu preço"
+                  ligada={c.regra_so_abaixo_do_meu}
+                  aoMudar={(v) => aoMudarRegras({ regra_so_abaixo_do_meu: v })}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         {c.permalink && (
