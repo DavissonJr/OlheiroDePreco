@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 // Renova a sessão do Supabase a cada navegação (padrão recomendado pelo Supabase).
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const chave = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !chave) return NextResponse.next();
 
   let resposta = NextResponse.next({ request });
@@ -23,5 +23,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/painel/:path*", "/onboarding", "/api/ml/:path*", "/api/concorrentes", "/api/assinatura", "/api/telegram/codigo"],
+  matcher: ["/painel/:path*", "/onboarding", "/api/ml/:path*", "/api/concorrentes/:path*", "/api/assinatura/:path*", "/api/telegram/codigo"],
 };
