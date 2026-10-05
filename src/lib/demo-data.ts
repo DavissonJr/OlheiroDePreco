@@ -1,4 +1,4 @@
-import type { Alerta, Concorrente, Perfil, PontoPreco, Produto, Venda } from "./types";
+import type { AjustePreco, Alerta, Concorrente, Perfil, PontoPreco, Produto, Sugestao, Venda } from "./types";
 
 // Gerador pseudoaleatório com semente fixa: os dados de demonstração
 // são sempre os mesmos, então os números não "pulam" a cada recarga.
@@ -12,15 +12,33 @@ function rng(semente: number) {
 
 const DIA = 86400000;
 
+// Campos que todo produto tem, com os valores de quem ainda não preencheu nada.
+const PRODUTO_VAZIO = {
+  thumbnail: null, permalink: null,
+  custo: null, imposto_pct: null, frete: null, tarifa_pct: null, custo_fixo: null, margem_min_pct: null,
+  catalogo_id: null, buybox_ganhando: null, buybox_vencedor: null, buybox_preco: null, buybox_verificado_em: null,
+  repricing_ativo: false, repricing_piso: null, repricing_teto: null, repricing_diferenca: 0.1, repricing_ultimo_em: null,
+} satisfies Partial<Produto>;
+
 export const PRODUTOS_DEMO: Produto[] = [
-  { id: "MLB3810294417", titulo: "Fone Bluetooth TWS Pro com Cancelamento de Ruído", preco: 189.9, estoque: 42, thumbnail: null, permalink: null },
-  { id: "MLB3920118735", titulo: "Carregador Turbo 20W USB-C", preco: 59.9, estoque: 118, thumbnail: null, permalink: null },
-  { id: "MLB4011873526", titulo: "Suporte Veicular Magnético para Celular", preco: 39.9, estoque: 76, thumbnail: null, permalink: null },
-  { id: "MLB3877410092", titulo: "Smartwatch D20 Fit com Monitor Cardíaco", preco: 129.9, estoque: 23, thumbnail: null, permalink: null },
-  { id: "MLB3995521840", titulo: "Cabo USB-C Reforçado Nylon 2 metros", preco: 29.9, estoque: 204, thumbnail: null, permalink: null },
-  { id: "MLB4102266591", titulo: "Mouse Sem Fio Silencioso Recarregável", preco: 74.9, estoque: 31, thumbnail: null, permalink: null },
-  { id: "MLB3764490218", titulo: "Ring Light 26cm com Tripé 2 metros", preco: 99.9, estoque: 14, thumbnail: null, permalink: null },
+  {
+    ...PRODUTO_VAZIO, id: "MLB3810294417", titulo: "Fone Bluetooth TWS Pro com Cancelamento de Ruído", preco: 189.9, estoque: 42,
+    custo: 92, imposto_pct: 6, frete: 0, margem_min_pct: 10,
+    catalogo_id: "MLB19873321", buybox_ganhando: false, buybox_vencedor: "CASADOFONE", buybox_preco: 174.9,
+  },
+  {
+    ...PRODUTO_VAZIO, id: "MLB3920118735", titulo: "Carregador Turbo 20W USB-C", preco: 59.9, estoque: 118,
+    custo: 21, imposto_pct: 6, frete: 0,
+    catalogo_id: "MLB20118044", buybox_ganhando: true, buybox_preco: 59.9,
+  },
+  { ...PRODUTO_VAZIO, id: "MLB4011873526", titulo: "Suporte Veicular Magnético para Celular", preco: 39.9, estoque: 76, custo: 14.5, imposto_pct: 6 },
+  { ...PRODUTO_VAZIO, id: "MLB3877410092", titulo: "Smartwatch D20 Fit com Monitor Cardíaco", preco: 129.9, estoque: 23 },
+  { ...PRODUTO_VAZIO, id: "MLB3995521840", titulo: "Cabo USB-C Reforçado Nylon 2 metros", preco: 29.9, estoque: 204 },
+  { ...PRODUTO_VAZIO, id: "MLB4102266591", titulo: "Mouse Sem Fio Silencioso Recarregável", preco: 74.9, estoque: 31 },
+  { ...PRODUTO_VAZIO, id: "MLB3764490218", titulo: "Ring Light 26cm com Tripé 2 metros", preco: 99.9, estoque: 14 },
 ];
+
+const REGRAS_VAZIAS = { regra_queda_pct: null, regra_abaixo_de: null, regra_so_abaixo_do_meu: false };
 
 const PESOS = [0.2, 0.2, 0.17, 0.1, 0.16, 0.1, 0.07];
 
@@ -85,10 +103,19 @@ export function criarDemo() {
     plano: "gratis",
     pro_ate: null,
     assinatura_ativa: false,
+    assinatura_plano: null,
+    assinatura_ciclo: null,
+    teste_usado: false,
+    cortesia_ate: null,
+    codigo_indicacao: "marina26",
+    indicacoes_ok: 1,
     ml_nickname: "MARINAACESSORIOS",
     telegram_conectado: false,
     alerta_email: true,
     alerta_telegram: true,
+    email_frequencia: "na_hora",
+    resumo_semanal: true,
+    interesse_whatsapp: false,
     onboarding_ok: true,
   };
 
@@ -98,18 +125,21 @@ export function criarDemo() {
       titulo: "Fone De Ouvido Bluetooth Tws Pro Anc Original", vendedor: "CASADOFONE",
       thumbnail: null, permalink: null, preco_atual: 174.9, preco_anterior: 189.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 40 * DIA).toISOString(),
+      estoque: 37, sem_estoque: false, ...REGRAS_VAZIAS, regra_queda_pct: 5,
     },
     {
       id: "c2", meu_item_id: "MLB3920118735", item_id: "MLB3920930014",
       titulo: "Carregador Turbo 20w Tipo C Power Delivery", vendedor: "TECHMAIS_OFICIAL",
       thumbnail: null, permalink: null, preco_atual: 62.5, preco_anterior: 59.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 33 * DIA).toISOString(),
+      estoque: 0, sem_estoque: true, ...REGRAS_VAZIAS,
     },
     {
       id: "c3", meu_item_id: "MLB4011873526", item_id: "MLB4011220987",
       titulo: "Suporte Celular Carro Imã Magnético Painel", vendedor: "LOJA.ALFA",
       thumbnail: null, permalink: null, preco_atual: 37.9, preco_anterior: 41.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 28 * DIA).toISOString(),
+      estoque: 120, sem_estoque: false, ...REGRAS_VAZIAS,
     },
   ];
 
@@ -120,6 +150,16 @@ export function criarDemo() {
   };
 
   const alertas: Alerta[] = [
+    {
+      id: "a0", concorrente_id: "c2", tipo: "sem_estoque",
+      mensagem: "TECHMAIS_OFICIAL ficou sem estoque. Pode ser uma boa hora pra subir o seu preço.",
+      preco_antigo: null, preco_novo: 62.5, lido: false, created_at: new Date(agora - 40 * 60000).toISOString(),
+    },
+    {
+      id: "a00", concorrente_id: null, tipo: "buybox_perdida",
+      mensagem: "Fone Bluetooth TWS Pro com Cancelamento de Ruído: você perdeu a compra rápida do catálogo para CASADOFONE, que vende por R$ 174,90.",
+      preco_antigo: 189.9, preco_novo: 174.9, lido: false, created_at: new Date(agora - 11 * 60000).toISOString(),
+    },
     {
       id: "a1", concorrente_id: "c1", tipo: "abaixo_do_meu",
       mensagem: "CASADOFONE baixou o fone TWS Pro para R$ 174,90. Agora está R$ 15,00 abaixo do seu anúncio.",
@@ -137,7 +177,24 @@ export function criarDemo() {
     },
   ];
 
-  return { perfil, produtos: PRODUTOS_DEMO, vendas: gerarVendas(), concorrentes, historicos, alertas };
+  const ajustes: AjustePreco[] = [];
+
+  return { perfil, produtos: PRODUTOS_DEMO, vendas: gerarVendas(), concorrentes, historicos, alertas, ajustes };
+}
+
+// Sugestões de concorrentes na demonstração: anúncios parecidos, perto do seu preço.
+export function sugestoesFicticias(meu: Produto): Sugestao[] {
+  const r = rng([...meu.id].reduce((s, c) => s + c.charCodeAt(0), 0));
+  const nome = meu.titulo.split(" ").slice(0, 4).join(" ");
+  const variacoes = ["Original", "Pronta Entrega", "Envio Imediato", "Premium", "Lacrado"];
+  return VENDEDORES_FICTICIOS.map((vendedor, i) => ({
+    item_id: `MLB${4500000000 + Math.floor(r() * 99999999)}`,
+    titulo: `${nome} ${variacoes[i % variacoes.length]}`,
+    preco: +(meu.preco * (0.85 + r() * 0.3)).toFixed(2),
+    vendedor,
+    thumbnail: null,
+    permalink: null,
+  })).sort((a, b) => a.preco - b.preco);
 }
 
 const VENDEDORES_FICTICIOS = ["MEGASTORE_BR", "IMPORTADOS.JP", "LOJA_DO_ZE", "PRIMEOFERTAS", "BRASILTECH"];
@@ -164,6 +221,9 @@ export function concorrenteFicticio(itemId: string, meu: Produto | undefined): {
       preco_anterior: null,
       ultima_verificacao: agora,
       created_at: agora,
+      estoque: null,
+      sem_estoque: false,
+      ...REGRAS_VAZIAS,
     },
     historico: [{ preco, registrado_em: agora }],
   };

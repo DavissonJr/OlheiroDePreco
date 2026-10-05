@@ -3,11 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IS_DEMO } from "@/lib/config";
-import { concorrenteFicticio, criarDemo } from "@/lib/demo-data";
+import { concorrenteFicticio, criarDemo, sugestoesFicticias } from "@/lib/demo-data";
 import { lerEstadoDemo, sairDemo, salvarEstadoDemo, sessaoDemoAtiva } from "@/lib/demo";
 import { supabaseNavegador } from "@/lib/supabase/client";
-import type { Alerta, Concorrente, Perfil, PontoPreco, Produto, Venda } from "@/lib/types";
-import { PLANOS } from "@/lib/planos";
+import type { AjustePreco, Alerta, CamposCusto, CamposRegra, CamposRepricing, Concorrente, Perfil, PontoPreco, Produto, Sugestao, Venda } from "@/lib/types";
+import { DIAS_TESTE, PLANO_TESTE, PLANOS, type Ciclo, type PlanoPago } from "@/lib/planos";
+import { normalizarProduto } from "@/lib/normalizar";
 
 interface Estado {
   perfil: Perfil | null;
@@ -16,7 +17,10 @@ interface Estado {
   concorrentes: Concorrente[];
   historicos: Record<string, PontoPreco[]>;
   alertas: Alerta[];
+  ajustes: AjustePreco[];
 }
+
+type CamposPerfil = "nome" | "marketplaces" | "alerta_email" | "alerta_telegram" | "onboarding_ok" | "email_frequencia" | "resumo_semanal" | "interesse_whatsapp";
 
 type Resultado = { ok: true } | { ok: false; erro: string; limite?: boolean };
 
@@ -27,10 +31,14 @@ interface Store extends Estado {
   adicionarConcorrente: (link: string, meuItemId: string | null) => Promise<Resultado>;
   removerConcorrente: (id: string) => Promise<void>;
   marcarAlertasLidos: () => Promise<void>;
-  atualizarPerfil: (p: Partial<Pick<Perfil, "nome" | "marketplaces" | "alerta_email" | "alerta_telegram" | "onboarding_ok">>) => Promise<void>;
+  atualizarPerfil: (p: Partial<Pick<Perfil, CamposPerfil>>) => Promise<void>;
+  atualizarProduto: (id: string, campos: Partial<Pick<Produto, CamposCusto | CamposRepricing>>) => Promise<Resultado>;
+  atualizarRegras: (id: string, campos: Partial<Pick<Concorrente, CamposRegra>>) => Promise<Resultado>;
+  sugerirConcorrentes: (produtoId: string) => Promise<Resultado & { sugestoes?: Sugestao[] }>;
   sincronizar: () => Promise<Resultado>;
   conectarTelegram: () => Promise<Resultado & { link?: string }>;
-  assinarPro: () => Promise<Resultado>;
+  assinar: (plano: PlanoPago, ciclo: Ciclo) => Promise<Resultado & { trocado?: boolean }>;
+  iniciarTeste: () => Promise<Resultado & { ate?: string }>;
   cancelarAssinatura: () => Promise<Resultado & { ate?: string | null }>;
   excluirConta: () => Promise<Resultado>;
   recarregar: () => Promise<void>;
@@ -39,7 +47,7 @@ interface Store extends Estado {
 
 const Ctx = createContext<Store | null>(null);
 
-const VAZIO: Estado = { perfil: null, produtos: [], vendas: [], concorrentes: [], historicos: {}, alertas: [] };
+const VAZIO: Estado = { perfil: null, produtos: [], vendas: [], concorrentes: [], historicos: {}, alertas: [], ajustes: [] };
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function DadosProvider({ children }: { children: React.ReactNode }) {
@@ -72,12 +80,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const noventaDias = new Date(Date.now() - 90 * 86400000).toISOString();
-    const [perfil, produtos, vendas, concorrentes, alertas] = await Promise.all([
+    const [perfil, produtos, vendas, concorrentes, alertas, ajustes] = await Promise.all([
       sb.from("profiles").select("*").eq("id", auth.user.id).single(),
-      sb.from("produtos").select("id,titulo,preco,thumbnail,permalink,estoque").order("titulo"),
+      sb.from("produtos").select("*").order("titulo"),
       sb.from("vendas").select("id,data,total,taxa,status,itens").gte("data", noventaDias).order("data", { ascending: false }),
       sb.from("concorrentes").select("*").order("created_at", { ascending: false }),
       sb.from("alertas").select("*").order("created_at", { ascending: false }).limit(60),
+      sb.from("ajustes_preco").select("id,produto_id,preco_antigo,preco_novo,motivo,created_at").order("created_at", { ascending: false }).limit(50),
     ]);
 
     const ids = (concorrentes.data ?? []).map((c: Concorrente) => c.id);
@@ -105,22 +114,36 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
             plano: p.plano,
             pro_ate: p.pro_ate,
             assinatura_ativa: p.assinatura_status === "authorized",
+            assinatura_plano: p.assinatura_plano ?? null,
+            assinatura_ciclo: p.assinatura_ciclo ?? null,
+            teste_usado: !!p.teste_usado,
+            cortesia_ate: p.cortesia_ate ?? null,
+            codigo_indicacao: p.codigo_indicacao ?? null,
+            indicacoes_ok: p.indicacoes_ok ?? 0,
             ml_nickname: p.ml_nickname,
             telegram_conectado: !!p.telegram_chat_id,
             alerta_email: p.alerta_email,
             alerta_telegram: p.alerta_telegram,
+            email_frequencia: p.email_frequencia ?? "na_hora",
+            resumo_semanal: p.resumo_semanal ?? true,
+            interesse_whatsapp: !!p.interesse_whatsapp,
             onboarding_ok: p.onboarding_ok,
           }
         : null,
-      produtos: produtos.data ?? [],
+      produtos: (produtos.data ?? []).map(normalizarProduto),
       vendas: (vendas.data ?? []).map((v: Venda) => ({ ...v, total: Number(v.total), taxa: Number(v.taxa) })),
       concorrentes: (concorrentes.data ?? []).map((c: Concorrente) => ({
         ...c,
         preco_atual: c.preco_atual == null ? null : Number(c.preco_atual),
         preco_anterior: c.preco_anterior == null ? null : Number(c.preco_anterior),
+        regra_queda_pct: c.regra_queda_pct == null ? null : Number(c.regra_queda_pct),
+        regra_abaixo_de: c.regra_abaixo_de == null ? null : Number(c.regra_abaixo_de),
+        regra_so_abaixo_do_meu: !!c.regra_so_abaixo_do_meu,
+        sem_estoque: !!c.sem_estoque,
       })),
       historicos,
       alertas: alertas.data ?? [],
+      ajustes: (ajustes.data ?? []).map((a: AjustePreco) => ({ ...a, preco_antigo: Number(a.preco_antigo), preco_novo: Number(a.preco_novo) })),
     });
     setCarregando(false);
   }, [router]);
@@ -181,6 +204,34 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     if (!emDemo.current && id) await supabaseNavegador().from("profiles").update(p).eq("id", id);
   }, []);
 
+  const atualizarProduto = useCallback<Store["atualizarProduto"]>(async (id, campos) => {
+    setEstado((e) => ({ ...e, produtos: e.produtos.map((p) => (p.id === id ? { ...p, ...campos } : p)) }));
+    if (emDemo.current) return { ok: true };
+    const { error } = await supabaseNavegador().from("produtos").update(campos).eq("id", id);
+    return error ? { ok: false, erro: "Não consegui salvar agora. Tente de novo." } : { ok: true };
+  }, []);
+
+  const atualizarRegras = useCallback<Store["atualizarRegras"]>(async (id, campos) => {
+    setEstado((e) => ({ ...e, concorrentes: e.concorrentes.map((c) => (c.id === id ? { ...c, ...campos } : c)) }));
+    if (emDemo.current) return { ok: true };
+    const { error } = await supabaseNavegador().from("concorrentes").update(campos).eq("id", id);
+    return error ? { ok: false, erro: "Não consegui salvar a regra agora. Tente de novo." } : { ok: true };
+  }, []);
+
+  const sugerirConcorrentes = useCallback<Store["sugerirConcorrentes"]>(async (produtoId) => {
+    if (emDemo.current) {
+      await espera(900);
+      const e = atual.current;
+      const produto = e.produtos.find((p) => p.id === produtoId);
+      const seguidos = new Set(e.concorrentes.map((c) => c.item_id));
+      return { ok: true, sugestoes: produto ? sugestoesFicticias(produto).filter((s) => !seguidos.has(s.item_id)) : [] };
+    }
+    const res = await fetch(`/api/concorrentes/sugestoes?produto=${encodeURIComponent(produtoId)}`);
+    const corpo = await res.json();
+    if (!res.ok) return { ok: false, erro: corpo.erro ?? "Algo deu errado." };
+    return { ok: true, sugestoes: corpo.sugestoes as Sugestao[] };
+  }, []);
+
   const sincronizar = useCallback(async (): Promise<Resultado> => {
     if (emDemo.current) {
       await espera(1400);
@@ -205,18 +256,40 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return { ok: true as const, link: corpo.link as string };
   }, []);
 
-  const assinarPro = useCallback(async (): Promise<Resultado> => {
+  const assinar = useCallback<Store["assinar"]>(async (plano, ciclo) => {
     if (emDemo.current) {
       await espera(1100);
-      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: "pro", assinatura_ativa: true } } : e));
-      return { ok: true };
+      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano, assinatura_ativa: true, assinatura_plano: plano, assinatura_ciclo: ciclo } } : e));
+      return { ok: true, trocado: true };
     }
-    const res = await fetch("/api/assinatura", { method: "POST" });
+    const res = await fetch("/api/assinatura", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plano, ciclo }),
+    });
     const corpo = await res.json();
-    if (!res.ok) return { ok: false, erro: corpo.erro };
+    if (!res.ok) return { ok: false, erro: corpo.erro ?? "Algo deu errado." };
+    if (corpo.trocado) {
+      await carregar();
+      return { ok: true, trocado: true };
+    }
     window.location.href = corpo.url;
     return { ok: true };
-  }, []);
+  }, [carregar]);
+
+  const iniciarTeste = useCallback<Store["iniciarTeste"]>(async () => {
+    if (emDemo.current) {
+      await espera(700);
+      const ate = new Date(Date.now() + DIAS_TESTE * 86400000).toISOString();
+      setEstado((e) => (e.perfil ? { ...e, perfil: { ...e.perfil, plano: PLANO_TESTE, teste_usado: true, cortesia_ate: ate } } : e));
+      return { ok: true, ate };
+    }
+    const res = await fetch("/api/assinatura/teste", { method: "POST" });
+    const corpo = await res.json();
+    if (!res.ok) return { ok: false, erro: corpo.erro ?? "Algo deu errado." };
+    await carregar();
+    return { ok: true, ate: corpo.ate };
+  }, [carregar]);
 
   const cancelarAssinatura = useCallback(async () => {
     if (emDemo.current) {
@@ -261,15 +334,19 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       removerConcorrente,
       marcarAlertasLidos,
       atualizarPerfil,
+      atualizarProduto,
+      atualizarRegras,
+      sugerirConcorrentes,
       sincronizar,
       conectarTelegram,
-      assinarPro,
+      assinar,
+      iniciarTeste,
       cancelarAssinatura,
       excluirConta,
       recarregar: carregar,
       sair,
     }),
-    [estado, carregando, demo, limiteConcorrentes, adicionarConcorrente, removerConcorrente, marcarAlertasLidos, atualizarPerfil, sincronizar, conectarTelegram, assinarPro, cancelarAssinatura, excluirConta, carregar, sair],
+    [estado, carregando, demo, limiteConcorrentes, adicionarConcorrente, removerConcorrente, marcarAlertasLidos, atualizarPerfil, atualizarProduto, atualizarRegras, sugerirConcorrentes, sincronizar, conectarTelegram, assinar, iniciarTeste, cancelarAssinatura, excluirConta, carregar, sair],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
