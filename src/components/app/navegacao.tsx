@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { Bell, Eye, Gem, LayoutDashboard, UserRound } from "lucide-react";
+import { Bell, Eye, Gem, LayoutDashboard, Package, UserRound } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useDados } from "./dados";
 import { PLANOS } from "@/lib/planos";
@@ -12,6 +12,7 @@ import { PLANOS } from "@/lib/planos";
 const ITENS = [
   { href: "/painel", rotulo: "Visão geral", curto: "Início", icone: LayoutDashboard },
   { href: "/painel/concorrentes", rotulo: "Concorrentes", curto: "Concorrentes", icone: Eye },
+  { href: "/painel/produtos", rotulo: "Produtos", curto: "Produtos", icone: Package },
   { href: "/painel/alertas", rotulo: "Avisos", curto: "Avisos", icone: Bell },
   { href: "/painel/planos", rotulo: "Plano", curto: "Plano", icone: Gem, soDesktop: true },
   { href: "/painel/conta", rotulo: "Conta", curto: "Conta", icone: UserRound },
@@ -67,9 +68,9 @@ export function BarraLateral() {
             animate={{ width: `${Math.min(100, (concorrentes.length / limiteConcorrentes) * 100)}%` }}
           />
         </div>
-        {plano === "gratis" && (
+        {plano !== "turbo" && (
           <Link href="/painel/planos" className="mt-3 inline-block text-sm font-semibold text-cobalt hover:underline">
-            Conhecer o Pro
+            {plano === "gratis" ? "Conhecer os planos" : "Aumentar limite"}
           </Link>
         )}
       </div>
