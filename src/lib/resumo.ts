@@ -4,7 +4,7 @@ import { supabaseAdmin } from "./supabase/server";
 import { enviarEmails, escaparHtml, listaAvisosHtml, moldeEmail, type Email } from "./notificar";
 import { menorRival } from "./margem";
 import { porcentagem, primeiroNome, reais } from "./format";
-import { SITE_URL } from "./config";
+import { urlDoSite } from "./config";
 import type { Concorrente } from "./types";
 
 const DIA = 86400000;
@@ -35,7 +35,7 @@ export async function enviarAvisosDiarios() {
     emails.push({
       para: p.email,
       assunto: itens.length === 1 ? "1 aviso de preço hoje" : `${itens.length} avisos de preço hoje`,
-      html: moldeEmail("Seus avisos do dia", listaAvisosHtml(itens), { texto: "Ver os avisos", href: `${SITE_URL}/painel/alertas` }),
+      html: moldeEmail("Seus avisos do dia", listaAvisosHtml(itens), { texto: "Ver os avisos", href: `${urlDoSite()}/painel/alertas` }),
     });
   }
   await enviarEmails(emails);
@@ -130,5 +130,5 @@ ${ajustes ? linha("Ajustes automáticos feitos", String(ajustes)) : ""}
 </table>
 ${sugestoes.length ? `<h2 style="font-size:16px;margin:22px 0 8px">Vale olhar</h2><ul style="margin:0;padding-left:18px;line-height:1.5">${sugestoes.slice(0, 6).map((s) => `<li>${s}</li>`).join("")}</ul>` : ""}`;
 
-  return moldeEmail("Sua semana", corpo, { texto: "Abrir o painel", href: `${SITE_URL}/painel` });
+  return moldeEmail("Sua semana", corpo, { texto: "Abrir o painel", href: `${urlDoSite()}/painel` });
 }

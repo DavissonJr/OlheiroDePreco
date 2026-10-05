@@ -8,7 +8,7 @@ import { enviarEmails, enviarTelegram, escaparHtml, listaAvisosHtml, moldeEmail,
 import { PLANOS, temRecurso, type PlanoId } from "./planos";
 import { alvoRepricing, custosDoProduto, menorRival, precoMinimo } from "./margem";
 import { reais } from "./format";
-import { SITE_URL } from "./config";
+import { urlDoSite } from "./config";
 import type { Concorrente, Produto, TipoAlerta } from "./types";
 import { normalizarProduto } from "./normalizar";
 
@@ -368,7 +368,7 @@ async function despachar(saida: Saida) {
   const emails: Email[] = [];
   for (const { perfil: p, itens } of saida.values()) {
     if (!itens.length) continue;
-    const link = `${SITE_URL}/painel/alertas`;
+    const link = `${urlDoSite()}/painel/alertas`;
     if (p.alerta_telegram && p.telegram_chat_id && temRecurso(p.plano, "telegram")) {
       const texto = itens.length === 1
         ? `<b>${escaparHtml(itens[0].titulo)}</b>\n${escaparHtml(itens[0].mensagem)}\n\n${link}`

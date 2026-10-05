@@ -1,5 +1,5 @@
 // Envio de avisos: Telegram (grátis) e e-mail via Resend (opcional).
-import { NOME_APP, SITE_URL } from "./config";
+import { NOME_APP, urlDoSite } from "./config";
 
 export async function enviarTelegram(chatId: string, texto: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -49,7 +49,7 @@ export function escaparHtml(s: string) {
 }
 
 // Moldura simples dos e-mails (estilos inline, que é o que os leitores de e-mail aceitam).
-export function moldeEmail(titulo: string, corpo: string, botao = { texto: `Abrir o ${NOME_APP}`, href: `${SITE_URL}/painel` }) {
+export function moldeEmail(titulo: string, corpo: string, botao = { texto: `Abrir o ${NOME_APP}`, href: `${urlDoSite()}/painel` }) {
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f4f5fa;font-family:Arial,Helvetica,sans-serif;color:#141a33">
 <div style="max-width:560px;margin:0 auto;padding:28px 18px">
 <p style="font-weight:bold;font-size:15px;color:#2d3277;margin:0 0 18px">${NOME_APP}</p>
@@ -58,7 +58,7 @@ export function moldeEmail(titulo: string, corpo: string, botao = { texto: `Abri
 ${corpo}
 <p style="margin:24px 0 0"><a href="${botao.href}" style="display:inline-block;background:#2d3fd3;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 20px;border-radius:10px">${botao.texto}</a></p>
 </div>
-<p style="font-size:12px;color:#6b7190;margin:16px 4px 0">Você recebe este e-mail porque tem uma conta no ${NOME_APP}. Ajuste ou desligue em <a href="${SITE_URL}/painel/alertas" style="color:#6b7190">Avisos</a>.</p>
+<p style="font-size:12px;color:#6b7190;margin:16px 4px 0">Você recebe este e-mail porque tem uma conta no ${NOME_APP}. Ajuste ou desligue em <a href="${urlDoSite()}/painel/alertas" style="color:#6b7190">Avisos</a>.</p>
 </div></body></html>`;
 }
 

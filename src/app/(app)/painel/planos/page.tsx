@@ -15,7 +15,7 @@ import {
   type Ciclo, type PlanoId, type PlanoPago,
 } from "@/lib/planos";
 import { reais } from "@/lib/format";
-import { SITE_URL } from "@/lib/config";
+import { urlDoSite } from "@/lib/config";
 
 const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
 const ORDEM: PlanoId[] = ["gratis", ...PLANOS_PAGOS];
@@ -227,7 +227,7 @@ export default function Planos() {
 function Indicacao({ codigo, total }: { codigo: string | null; total: number }) {
   const avisar = useAviso();
   if (!codigo) return null;
-  const link = `${SITE_URL}/entrar?criar=1&ref=${codigo}`;
+  const link = `${urlDoSite()}/entrar?criar=1&ref=${codigo}`;
 
   async function copiar() {
     try {

@@ -1,5 +1,5 @@
 // Assinaturas recorrentes com o Mercado Pago (funciona com conta de CPF).
-import { SITE_URL } from "./config";
+import { urlDoSite } from "./config";
 import { PLANOS, precoCiclo, type Ciclo, type PlanoPago } from "./planos";
 
 const API = "https://api.mercadopago.com";
@@ -22,7 +22,7 @@ export async function criarAssinatura(userId: string, email: string, plano: Plan
       reason: motivo(plano, ciclo),
       external_reference: userId,
       payer_email: email,
-      back_url: `${SITE_URL}/painel/planos?assinatura=ok`,
+      back_url: `${urlDoSite()}/painel/planos?assinatura=ok`,
       auto_recurring: {
         frequency: ciclo === "anual" ? 12 : 1,
         frequency_type: "months",

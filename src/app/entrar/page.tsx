@@ -7,7 +7,7 @@ import { ArrowLeft, MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Botao } from "@/components/ui/botao";
-import { IS_DEMO, SITE_URL } from "@/lib/config";
+import { IS_DEMO, urlDoSite } from "@/lib/config";
 import { ativarDemo, sairDemo } from "@/lib/demo";
 import { supabaseNavegador } from "@/lib/supabase/client";
 
@@ -64,7 +64,7 @@ export default function Entrar() {
       const { data, error } = await sb.auth.signUp({
         email,
         password: senha,
-        options: { data: { nome, ...(ref ? { ref } : {}) }, emailRedirectTo: `${SITE_URL}/auth/callback?proximo=/onboarding` },
+        options: { data: { nome, ...(ref ? { ref } : {}) }, emailRedirectTo: `${urlDoSite()}/auth/callback?proximo=/onboarding` },
       });
       setEnviando(false);
       if (error) return setErro(traduzirErro(error.message));
@@ -89,7 +89,7 @@ export default function Entrar() {
     if (IS_DEMO) return setTela("link-enviado");
     setEnviando(true);
     const { error } = await supabaseNavegador().auth.resetPasswordForEmail(email, {
-      redirectTo: `${SITE_URL}/auth/callback?proximo=/nova-senha`,
+      redirectTo: `${urlDoSite()}/auth/callback?proximo=/nova-senha`,
     });
     setEnviando(false);
     if (error) return setErro(traduzirErro(error.message));
