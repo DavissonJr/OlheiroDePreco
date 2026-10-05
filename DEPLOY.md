@@ -56,7 +56,8 @@ A Cloudflare só liga o site ao seu domínio se ela cuidar do DNS dele.
 1. Abra **SQL Editor > New query**.
 2. Cole todo o conteúdo de `supabase/schema.sql` e clique em **Run**.
 3. Abra outra query, cole `supabase/atualizacao-01-recursos.sql` e clique em **Run**.
-   Se você já tinha rodado o `schema.sql` antes, rode só este.
+   Depois faça o mesmo com `supabase/atualizacao-02-catalogo.sql`.
+   Se você já tinha rodado o `schema.sql` antes, rode só as atualizações que faltam.
 4. Em **Table Editor**, confira se apareceram 8 tabelas: `profiles`,
    `ml_contas`, `produtos`, `vendas`, `concorrentes`, `historico_precos`,
    `alertas` e `ajustes_preco`.

@@ -87,6 +87,8 @@ export interface Concorrente {
   id: string;
   meu_item_id: string | null;
   item_id: string;
+  // Produto de catálogo: é por ele que o preço é lido (veja vendedoresCatalogo em lib/ml.ts)
+  catalogo_id: string | null;
   titulo: string;
   vendedor: string | null;
   thumbnail: string | null;
@@ -105,13 +107,18 @@ export interface Concorrente {
 
 export type CamposRegra = "regra_queda_pct" | "regra_abaixo_de" | "regra_so_abaixo_do_meu";
 
+// De onde veio a sugestão de concorrente
+export type OrigemSugestao = "mesmo_produto" | "parecido" | "mais_vendido";
+
 export interface Sugestao {
   item_id: string;
+  catalogo_id: string;
   titulo: string;
   preco: number;
   vendedor: string | null;
   thumbnail: string | null;
   permalink: string | null;
+  origem: OrigemSugestao;
 }
 
 export interface AjustePreco {

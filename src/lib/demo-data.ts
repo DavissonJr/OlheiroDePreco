@@ -125,21 +125,21 @@ export function criarDemo() {
       titulo: "Fone De Ouvido Bluetooth Tws Pro Anc Original", vendedor: "CASADOFONE",
       thumbnail: null, permalink: null, preco_atual: 174.9, preco_anterior: 189.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 40 * DIA).toISOString(),
-      estoque: 37, sem_estoque: false, ...REGRAS_VAZIAS, regra_queda_pct: 5,
+      catalogo_id: "MLB19873321", estoque: 37, sem_estoque: false, ...REGRAS_VAZIAS, regra_queda_pct: 5,
     },
     {
       id: "c2", meu_item_id: "MLB3920118735", item_id: "MLB3920930014",
       titulo: "Carregador Turbo 20w Tipo C Power Delivery", vendedor: "TECHMAIS_OFICIAL",
       thumbnail: null, permalink: null, preco_atual: 62.5, preco_anterior: 59.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 33 * DIA).toISOString(),
-      estoque: 0, sem_estoque: true, ...REGRAS_VAZIAS,
+      catalogo_id: "MLB20118044", estoque: 0, sem_estoque: true, ...REGRAS_VAZIAS,
     },
     {
       id: "c3", meu_item_id: "MLB4011873526", item_id: "MLB4011220987",
       titulo: "Suporte Celular Carro Imã Magnético Painel", vendedor: "LOJA.ALFA",
       thumbnail: null, permalink: null, preco_atual: 37.9, preco_anterior: 41.9,
       ultima_verificacao: new Date(agora - 12 * 60000).toISOString(), created_at: new Date(agora - 28 * DIA).toISOString(),
-      estoque: 120, sem_estoque: false, ...REGRAS_VAZIAS,
+      catalogo_id: null, estoque: 120, sem_estoque: false, ...REGRAS_VAZIAS,
     },
   ];
 
@@ -189,11 +189,13 @@ export function sugestoesFicticias(meu: Produto): Sugestao[] {
   const variacoes = ["Original", "Pronta Entrega", "Envio Imediato", "Premium", "Lacrado"];
   return VENDEDORES_FICTICIOS.map((vendedor, i) => ({
     item_id: `MLB${4500000000 + Math.floor(r() * 99999999)}`,
+    catalogo_id: `MLB${20000000 + Math.floor(r() * 9999999)}`,
     titulo: `${nome} ${variacoes[i % variacoes.length]}`,
     preco: +(meu.preco * (0.85 + r() * 0.3)).toFixed(2),
     vendedor,
     thumbnail: null,
     permalink: null,
+    origem: i < 3 ? ("parecido" as const) : ("mais_vendido" as const),
   })).sort((a, b) => a.preco - b.preco);
 }
 
@@ -213,6 +215,7 @@ export function concorrenteFicticio(itemId: string, meu: Produto | undefined): {
       id,
       meu_item_id: meu?.id ?? null,
       item_id: itemId,
+      catalogo_id: null,
       titulo: meu ? `${meu.titulo.split(" ").slice(0, 4).join(" ")} Pronta Entrega` : "Anúncio concorrente",
       vendedor: VENDEDORES_FICTICIOS[Math.floor(r() * VENDEDORES_FICTICIOS.length)],
       thumbnail: null,

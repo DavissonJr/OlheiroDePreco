@@ -1,7 +1,7 @@
 // Cliente da API do Mercado Livre (servidor).
 // Documentação: https://developers.mercadolivre.com.br
 import { supabaseAdmin } from "./supabase/server";
-import type { ItemVenda, Sugestao } from "./types";
+import type { ItemVenda, OrigemSugestao, Sugestao } from "./types";
 
 const API = "https://api.mercadolibre.com";
 export const ML_AUTH_URL = "https://auth.mercadolivre.com.br/authorization";
@@ -90,15 +90,22 @@ async function mlPut<T>(caminho: string, corpo: unknown, token: string): Promise
 
 // Aceita links como:
 //   https://produto.mercadolivre.com.br/MLB-1234567890-nome-do-produto-_JM
-//   https://www.mercadolivre.com.br/nome/p/MLB12345678   (página de catálogo)
+//   https://www.mercadolivre.com.br/nome/p/MLB12345678                    (página de catálogo)
+//   https://www.mercadolivre.com.br/nome/p/MLB12345678?pdp_filters=item_id:MLB1234567890
 //   MLB1234567890
-export function extrairId(link: string): { tipo: "item" | "produto"; id: string } | null {
-  const texto = link.trim();
-  const catalogo = texto.match(/\/p\/(MLB\d+)/i);
-  if (catalogo) return { tipo: "produto", id: catalogo[1].toUpperCase() };
-  const item = texto.match(/MLB-?(\d{6,})/i);
-  if (item) return { tipo: "item", id: `MLB${item[1]}` };
-  return null;
+// Devolve o produto de catálogo e/ou o anúncio que o link aponta.
+export function extrairId(link: string): { catalogoId: string | null; itemId: string | null } | null {
+  let texto = link.trim();
+  try {
+    texto = decodeURIComponent(texto);
+  } catch {}
+  const catalogo = texto.match(/\/p\/(MLB\d+)/i)?.[1]?.toUpperCase() ?? null;
+  // Na página de catálogo, o vendedor escolhido vem em item_id:MLB... ou wid=MLB...
+  const doVendedor = texto.match(/(?:item_id[:=]|wid=)MLB-?(\d{6,})/i)?.[1];
+  const solto = catalogo ? null : texto.match(/MLB-?(\d{6,})/i)?.[1];
+  const item = doVendedor ?? solto;
+  if (!catalogo && !item) return null;
+  return { catalogoId: catalogo, itemId: item ? `MLB${item}` : null };
 }
 
 export interface ItemML {
@@ -158,9 +165,59 @@ export async function precoDeVenda(itemId: string, token: string): Promise<numbe
   }
 }
 
+// O Mercado Livre não deixa aplicativos lerem anúncios de outros vendedores
+// (/items responde 403). O que continua liberado é o catálogo: a lista de quem
+// vende cada produto de catálogo, com o preço de cada um. Quem fica sem estoque
+// ou pausa o anúncio sai da lista. A ordem é a do ranking da compra rápida.
+export interface VendedorCatalogo {
+  item_id: string;
+  price: number;
+  seller_id: number;
+}
+
+export async function vendedoresCatalogo(catalogoId: string, token: string): Promise<VendedorCatalogo[]> {
+  const todos: VendedorCatalogo[] = [];
+  for (let offset = 0; offset < 500; offset += 100) {
+    let r: { results?: VendedorCatalogo[]; paging?: { total: number } };
+    try {
+      r = await mlGet(`/products/${catalogoId}/items?limit=100&offset=${offset}`, token);
+    } catch (e) {
+      // 404 "No winners found": ninguém vendendo agora (ou acabou a lista)
+      if (/\(404\)/.test((e as Error).message)) break;
+      throw e;
+    }
+    todos.push(...(r.results ?? []));
+    if (!r.paging || offset + 100 >= r.paging.total) break;
+  }
+  return todos;
+}
+
+export async function produtoCatalogo(catalogoId: string, token: string) {
+  const p = await mlGet<{ name: string; pictures?: { url: string }[] }>(`/products/${catalogoId}`, token);
+  return { titulo: p.name, thumbnail: p.pictures?.[0]?.url?.replace("http://", "https://") ?? null };
+}
+
+export const linkCatalogo = (catalogoId: string, itemId?: string) =>
+  `https://www.mercadolivre.com.br/p/${catalogoId}${itemId ? `?pdp_filters=item_id:${itemId}` : ""}`;
+
+// Lista de vendedores por catálogo, guardada durante uma rodada da conferência
+// (vários concorrentes no mesmo catálogo custam uma chamada só).
+export type CacheCatalogo = Map<string, Promise<VendedorCatalogo[]>>;
+
 // Preço e estoque de um anúncio de concorrente, numa rodada da conferência.
-// Pausado, encerrado ou com estoque zero conta como "sem estoque".
-export async function lerAnuncio(itemId: string, token: string) {
+// Pelo catálogo: fora da lista = sem estoque (ou pausado). Sem catálogo, tenta o
+// caminho direto, que só funciona se o Mercado Livre liberar o acesso ao app.
+export async function lerAnuncio(itemId: string, catalogoId: string | null, token: string, cache: CacheCatalogo = new Map()) {
+  if (catalogoId) {
+    if (!cache.has(catalogoId)) cache.set(catalogoId, vendedoresCatalogo(catalogoId, token));
+    try {
+      const v = (await cache.get(catalogoId)!).find((x) => x.item_id === itemId);
+      return v ? { preco: v.price, estoque: null, semEstoque: false } : { preco: null, estoque: null, semEstoque: true };
+    } catch {
+      cache.delete(catalogoId);
+      return { preco: null, estoque: null, semEstoque: false };
+    }
+  }
   const preco = await precoDeVenda(itemId, token);
   try {
     const r = await mlGet<ItemBruto>(`/items/${itemId}?attributes=available_quantity,status`, token);
@@ -172,12 +229,56 @@ export async function lerAnuncio(itemId: string, token: string) {
 }
 
 // Quem está ganhando a compra rápida de um produto de catálogo agora.
+// O campo buy_box_winner costuma vir vazio; aí vale o primeiro da lista de vendedores.
 export async function vencedorCatalogo(catalogoId: string, token: string) {
-  const p = await mlGet<{ buy_box_winner?: { item_id: string; price: number; seller_id?: number } | null }>(
-    `/products/${catalogoId}`,
-    token,
-  );
-  return p.buy_box_winner ?? null;
+  const p = await mlGet<{ buy_box_winner?: VendedorCatalogo | null }>(`/products/${catalogoId}`, token);
+  if (p.buy_box_winner?.item_id) return p.buy_box_winner;
+  return (await vendedoresCatalogo(catalogoId, token))[0] ?? null;
+}
+
+export class ErroAnuncio extends Error {}
+
+// Descobre o anúncio de concorrente a partir do link colado (ou de uma sugestão).
+// Com catálogo, lê tudo pela lista de vendedores; sem vendedor no link, pega o mais barato.
+export async function resolverConcorrente(alvo: { catalogoId: string | null; itemId: string | null }, mlUserId: number, token: string) {
+  let catalogoId = alvo.catalogoId;
+
+  if (!catalogoId && alvo.itemId) {
+    // Anúncio solto: só funciona se o Mercado Livre deixar ler anúncio de outro vendedor.
+    let item: ItemML;
+    try {
+      item = await buscarItem(alvo.itemId, token);
+    } catch {
+      throw new ErroAnuncio(
+        "O Mercado Livre não deixa ler esse anúncio direto. Abra a página do produto no catálogo (o link tem /p/MLB...) e cole esse link.",
+      );
+    }
+    if (!item.catalogoId) {
+      return {
+        item_id: item.id, catalogo_id: null as string | null, titulo: item.titulo, preco: item.preco,
+        thumbnail: item.thumbnail, permalink: item.permalink, vendedorId: item.vendedorId, estoque: item.estoque,
+      };
+    }
+    catalogoId = item.catalogoId;
+  }
+
+  const vendedores = await vendedoresCatalogo(catalogoId!, token);
+  const escolhido = alvo.itemId
+    ? vendedores.find((v) => v.item_id === alvo.itemId)
+    : [...vendedores].filter((v) => v.seller_id !== mlUserId).sort((a, b) => a.price - b.price)[0];
+  if (!escolhido) {
+    throw new ErroAnuncio(
+      alvo.itemId
+        ? "Esse vendedor não está vendendo esse produto agora (pode estar sem estoque)."
+        : "Ninguém além de você está vendendo esse produto agora.",
+    );
+  }
+  const produto = await produtoCatalogo(catalogoId!, token);
+  return {
+    item_id: escolhido.item_id, catalogo_id: catalogoId as string | null, titulo: produto.titulo, preco: escolhido.price,
+    thumbnail: produto.thumbnail, permalink: linkCatalogo(catalogoId!, escolhido.item_id) as string | null,
+    vendedorId: escolhido.seller_id as number | null, estoque: null as number | null,
+  };
 }
 
 // Muda o preço de um anúncio do próprio vendedor (ajuste automático).
@@ -186,62 +287,96 @@ export async function alterarPreco(itemId: string, preco: number, token: string)
   return mlPut<{ id: string; price: number }>(`/items/${itemId}`, { price: preco }, token);
 }
 
-// Sugere anúncios parecidos com um anúncio do vendedor.
-// Com catálogo, lista quem vende o mesmo produto; sem catálogo, busca pelo título.
+// Sugere concorrentes pra um anúncio do vendedor, sempre pelo catálogo
+// (a busca aberta e a leitura de anúncios de terceiros são bloqueadas), em três passos:
+//   1. quem vende o mesmo produto de catálogo do anúncio;
+//   2. produtos de catálogo com nome parecido, e o vendedor mais barato de cada um;
+//   3. os mais vendidos da categoria do produto (descoberta pelo título).
+const MAX_SUGESTOES = 12;
+
 export async function buscarParecidos(
-  produto: { titulo: string; catalogo_id: string | null },
+  produto: { id: string; titulo: string; catalogo_id: string | null },
   mlUserId: number,
   token: string,
 ): Promise<Sugestao[]> {
-  let sugestoes: Sugestao[] = [];
+  const escolhidos = new Map<string, Omit<Sugestao, "vendedor"> & { vendedorId: number }>();
+  const vistos = new Set<string>();
 
-  if (produto.catalogo_id) {
+  async function deCatalogo(
+    catalogoId: string,
+    origem: OrigemSugestao,
+    maximo: number,
+    info?: { titulo: string; thumbnail: string | null },
+  ) {
+    if (vistos.has(catalogoId) || escolhidos.size >= MAX_SUGESTOES) return;
+    vistos.add(catalogoId);
     try {
-      const r = await mlGet<{ results: { item_id: string; price: number; seller_id: number }[] }>(
-        `/products/${produto.catalogo_id}/items?limit=20`,
-        token,
-      );
-      const outros = (r.results ?? []).filter((x) => x.seller_id !== mlUserId);
-      if (outros.length) {
-        const detalhes = await mlGet<{ code: number; body: ItemBruto }[]>(
-          `/items?ids=${outros.map((x) => x.item_id).join(",")}&attributes=id,title,price,thumbnail,permalink`,
-          token,
-        );
-        const porId = new Map(detalhes.filter((d) => d.code === 200).map((d) => [d.body.id, d.body]));
-        sugestoes = outros.map((x) => {
-          const d = porId.get(x.item_id);
-          return {
-            item_id: x.item_id,
-            titulo: d?.title ?? produto.titulo,
-            preco: x.price,
-            vendedor: null,
-            thumbnail: d?.thumbnail?.replace("http://", "https://") ?? null,
-            permalink: d?.permalink ?? null,
-          };
+      const outros = (await vendedoresCatalogo(catalogoId, token))
+        .filter((x) => x.seller_id !== mlUserId && x.item_id !== produto.id && !escolhidos.has(x.item_id))
+        .sort((a, b) => a.price - b.price)
+        .slice(0, maximo);
+      if (!outros.length) return;
+      const dados = info ?? (await produtoCatalogo(catalogoId, token));
+      for (const x of outros) {
+        escolhidos.set(x.item_id, {
+          item_id: x.item_id,
+          catalogo_id: catalogoId,
+          titulo: dados.titulo,
+          preco: x.price,
+          thumbnail: dados.thumbnail,
+          permalink: linkCatalogo(catalogoId, x.item_id),
+          origem,
+          vendedorId: x.seller_id,
         });
       }
     } catch {}
   }
 
-  if (!sugestoes.length) {
-    // Os primeiros termos do título costumam ser o que identifica o produto.
-    const termos = produto.titulo.split(/\s+/).slice(0, 6).join(" ");
-    const r = await mlGet<{
-      results: { id: string; title: string; price: number; thumbnail?: string; permalink?: string; seller?: { id: number; nickname?: string } }[];
-    }>(`/sites/MLB/search?q=${encodeURIComponent(termos)}&limit=20`, token);
-    sugestoes = (r.results ?? [])
-      .filter((x) => x.seller?.id !== mlUserId)
-      .map((x) => ({
-        item_id: x.id,
-        titulo: x.title,
-        preco: x.price,
-        vendedor: x.seller?.nickname ?? null,
-        thumbnail: x.thumbnail?.replace("http://", "https://") ?? null,
-        permalink: x.permalink ?? null,
-      }));
+  if (produto.catalogo_id) await deCatalogo(produto.catalogo_id, "mesmo_produto", MAX_SUGESTOES);
+
+  // Os primeiros termos do título costumam ser o que identifica o produto.
+  const termos = produto.titulo.split(/\s+/).slice(0, 6).join(" ");
+  // Tipo de produto (ex.: MLB-HEADPHONES) e categoria que o ML reconhece no título.
+  // Serve pra não sugerir coisa de outro tipo (um livro com "casaco" no nome, por exemplo).
+  const tipo = await mlGet<{ domain_id: string; category_id: string }[]>(
+    `/sites/MLB/domain_discovery/search?q=${encodeURIComponent(termos)}&limit=1`,
+    token,
+  ).then((d) => d[0] ?? null).catch(() => null);
+
+  if (escolhidos.size < 6) {
+    try {
+      const r = await mlGet<{ results: { id: string; name: string; domain_id?: string; pictures?: { url: string }[] }[] }>(
+        `/products/search?status=active&site_id=MLB&q=${encodeURIComponent(termos)}&limit=10`,
+        token,
+      );
+      const mesmoTipo = (r.results ?? []).filter((p) => !tipo || p.domain_id === tipo.domain_id);
+      for (const p of mesmoTipo.slice(0, 6)) {
+        await deCatalogo(p.id, "parecido", 1, {
+          titulo: p.name,
+          thumbnail: p.pictures?.[0]?.url?.replace("http://", "https://") ?? null,
+        });
+      }
+    } catch {}
   }
 
-  return sugestoes.sort((a, b) => a.preco - b.preco).slice(0, 12);
+  // A categoria do anúncio pode ser genérica; a reconhecida pelo título acerta mais.
+  if (escolhidos.size < 4 && tipo) {
+    try {
+      const h = await mlGet<{ content?: { id: string; type: string }[] }>(`/highlights/MLB/category/${tipo.category_id}`, token);
+      const produtos = (h.content ?? []).filter((x) => x.type === "PRODUCT").slice(0, 6);
+      for (const p of produtos) await deCatalogo(p.id, "mais_vendido", 1);
+    } catch {}
+  }
+
+  const lista = [...escolhidos.values()].slice(0, MAX_SUGESTOES);
+  const apelidos = await Promise.all(lista.map((x) => apelidoVendedor(x.vendedorId, token)));
+  const ordem: OrigemSugestao[] = ["mesmo_produto", "parecido", "mais_vendido"];
+  return lista
+    .map((x, i) => ({
+      item_id: x.item_id, catalogo_id: x.catalogo_id, titulo: x.titulo, preco: x.preco,
+      thumbnail: x.thumbnail, permalink: x.permalink, origem: x.origem, vendedor: apelidos[i],
+    }))
+    .sort((a, b) => ordem.indexOf(a.origem) - ordem.indexOf(b.origem) || a.preco - b.preco);
 }
 
 export async function buscarItem(itemId: string, token: string): Promise<ItemML> {
@@ -253,13 +388,6 @@ export async function buscarItem(itemId: string, token: string): Promise<ItemML>
   const preco = await precoDeVenda(itemId, token);
   if (preco != null) item.preco = preco;
   return item;
-}
-
-// Página de catálogo: usamos quem está ganhando a "compra rápida".
-export async function buscarVencedorCatalogo(produtoId: string, token: string) {
-  const p = await mlGet<{ buy_box_winner?: { item_id: string } }>(`/products/${produtoId}`, token);
-  if (!p.buy_box_winner?.item_id) throw new Error("Esse produto de catálogo não tem um vendedor ativo agora.");
-  return buscarItem(p.buy_box_winner.item_id, token);
 }
 
 export async function apelidoVendedor(sellerId: number | null, token: string) {

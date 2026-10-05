@@ -22,6 +22,12 @@ import { descreverIntervalo, PLANOS, PLANOS_PAGOS, temRecurso, type PlanoId } fr
 import { dataHora, reais, tempoRelativo } from "@/lib/format";
 import type { CamposRegra, Concorrente, Produto, Sugestao } from "@/lib/types";
 
+const ORIGEM_SUGESTAO = {
+  mesmo_produto: "vende o mesmo produto",
+  parecido: "produto parecido",
+  mais_vendido: "mais vendido da categoria",
+} as const;
+
 // Próximo plano com mais concorrentes que o atual (pra oferta de "aumentar limite").
 const proximoPlano = (plano: PlanoId) =>
   PLANOS_PAGOS.find((p) => PLANOS[p].limiteConcorrentes > PLANOS[plano].limiteConcorrentes) ?? null;
@@ -110,7 +116,7 @@ export default function Concorrentes() {
           <Etiqueta valor={null} tom="rival" tamanho="lg" className="opacity-60" />
           <h2 className="mt-5 text-2xl font-bold">Nenhum concorrente ainda</h2>
           <p className="mx-auto mt-2 max-w-[42ch] text-muted">
-            Abra o anúncio de um concorrente no Mercado Livre, copie o link e cole aqui. O Olheiro passa a vigiar o preço dele.
+            Abra a página do produto no Mercado Livre, copie o link e cole aqui, ou deixe o Olheiro sugerir. Ele passa a vigiar o preço.
           </p>
           <Botao className="mt-6" icone={<Plus className="size-5" aria-hidden />} onClick={() => setAdicionando(true)}>
             Adicionar o primeiro
@@ -189,8 +195,8 @@ export default function Concorrentes() {
           produtos={produtos}
           demo={demo}
           sugerir={sugerirConcorrentes}
-          aoAdicionar={async (link, meu, fechar = true) => {
-            const r = await adicionarConcorrente(link, meu);
+          aoAdicionar={async (link, meu, fechar = true, catalogoId) => {
+            const r = await adicionarConcorrente(link, meu, catalogoId);
             if (r.ok) {
               avisar("Concorrente adicionado. O Olheiro já está de olho no preço.");
               if (fechar) setAdicionando(false);
@@ -239,7 +245,7 @@ function FormAdicionar({
   produtos: Produto[];
   demo: boolean;
   sugerir: (produtoId: string) => Promise<{ ok: boolean; erro?: string; sugestoes?: Sugestao[] }>;
-  aoAdicionar: (link: string, meu: string | null, fechar?: boolean) => Promise<{ ok: boolean; erro?: string; limite?: boolean }>;
+  aoAdicionar: (link: string, meu: string | null, fechar?: boolean, catalogoId?: string | null) => Promise<{ ok: boolean; erro?: string; limite?: boolean }>;
 }) {
   const [link, setLink] = useState("");
   const [meu, setMeu] = useState<string | null>(produtos[0]?.id ?? null);
@@ -286,7 +292,7 @@ function FormAdicionar({
   async function seguir(s: Sugestao) {
     setSeguindo(s.item_id);
     // Pelo código, não pelo link: link de catálogo levaria pro vencedor da compra rápida.
-    const r = await aoAdicionar(s.item_id, meu, false);
+    const r = await aoAdicionar(s.item_id, meu, false, s.catalogo_id);
     setSeguindo(null);
     if (!r.ok) {
       if (r.limite) setBateuLimite(true);
@@ -329,7 +335,7 @@ function FormAdicionar({
             inputMode="url"
             autoComplete="off"
             required
-            placeholder="https://produto.mercadolivre.com.br/MLB-..."
+            placeholder="https://www.mercadolivre.com.br/.../p/MLB..."
             className="h-12 min-w-0 flex-1 rounded-xl bg-surface-2 px-4 text-[16px] ring-1 ring-inset ring-line outline-none focus:ring-2 focus:ring-cobalt"
           />
           <Botao type="button" variante="secundario" className="h-12 shrink-0" onClick={colar} aria-label="Colar da área de transferência">
@@ -337,7 +343,8 @@ function FormAdicionar({
           </Botao>
         </div>
         <p className="mt-2 text-sm text-muted">
-          No app do Mercado Livre: abra o anúncio, toque em Compartilhar e em Copiar link.
+          Use o link da página do produto (tem <strong>/p/MLB</strong> no endereço). Se escolher um vendedor na página
+          antes de copiar, o Olheiro acompanha ele; senão, acompanha o mais barato.
         </p>
         {demo && (
           <button type="button" onClick={() => setLink("https://produto.mercadolivre.com.br/MLB-4488120357-exemplo-_JM")} className="mt-2 text-sm font-semibold text-cobalt hover:underline">
@@ -381,13 +388,16 @@ function FormAdicionar({
       {meu && (
         <section className="rounded-xl bg-surface-2 p-4">
           <p className="font-semibold">Não sabe quem são seus concorrentes?</p>
-          <p className="mt-0.5 text-sm text-muted">O Olheiro procura no Mercado Livre anúncios parecidos com o seu.</p>
+          <p className="mt-0.5 text-sm text-muted">O Olheiro procura quem vende o mesmo produto, produtos parecidos e os mais vendidos da categoria.</p>
           {sugestoes == null ? (
             <Botao type="button" variante="secundario" tamanho="sm" className="mt-3" carregando={buscando} icone={<Search className="size-4" aria-hidden />} onClick={buscarSugestoes}>
               Buscar concorrentes
             </Botao>
           ) : sugestoes.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Não achamos anúncios parecidos. Cole o link de um concorrente acima.</p>
+            <p className="mt-3 text-sm text-muted">
+              Não achamos concorrentes pra esse produto no catálogo do Mercado Livre. Roupas, produtos artesanais e sem marca
+              quase nunca estão no catálogo. Se achar o produto numa página com /p/MLB no link, cole o link acima.
+            </p>
           ) : (
             <ul className="mt-3 space-y-2">
               {sugestoes.map((s) => (
@@ -396,8 +406,10 @@ function FormAdicionar({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-medium">{s.titulo}</p>
                     <p className="truncate text-sm text-muted">
-                      {s.vendedor && <>{s.vendedor} · </>}
                       <strong className="text-ink num">{reais(s.preco)}</strong>
+                      {s.vendedor && <> · {s.vendedor}</>}
+                      {" · "}
+                      {ORIGEM_SUGESTAO[s.origem]}
                     </p>
                   </div>
                   <Botao type="button" variante="secundario" tamanho="sm" carregando={seguindo === s.item_id} disabled={!!seguindo} onClick={() => seguir(s)}>

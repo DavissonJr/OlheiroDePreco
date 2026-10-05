@@ -83,6 +83,16 @@ open-next.config.ts           configuração do adaptador OpenNext
 - **Textos legais:** `src/app/termos/page.tsx` e `src/app/privacidade/page.tsx`.
   São modelos iniciais; revise com um advogado antes de ter clientes pagantes.
 
+## Concorrentes só pelo catálogo
+
+O Mercado Livre não deixa aplicativos lerem anúncios de outros vendedores
+(`/items` e `/sites/MLB/search` respondem 403). O que continua liberado é o
+catálogo: `/products/{id}/items` lista quem vende cada produto de catálogo, com
+o preço de cada um. Por isso cada concorrente guarda o `catalogo_id` e o preço
+sai dessa lista (veja `vendedoresCatalogo` e `lerAnuncio` em `src/lib/ml.ts`).
+Anúncios fora do catálogo ainda tentam o caminho direto, que volta a funcionar
+sozinho se o Mercado Livre liberar o acesso ao app.
+
 ## Sobre a API de preços do Mercado Livre
 
 O Mercado Livre está migrando os preços para o recurso `/sale_price`. O código

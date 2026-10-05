@@ -3,7 +3,7 @@
 // Na mesma rodada: estoque dos concorrentes, compra rápida do catálogo e ajuste automático.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "./supabase/server";
-import { alterarPreco, apelidoVendedor, lerAnuncio, tokenValido, vencedorCatalogo } from "./ml";
+import { alterarPreco, apelidoVendedor, lerAnuncio, tokenValido, vencedorCatalogo, type CacheCatalogo } from "./ml";
 import { enviarEmails, enviarTelegram, escaparHtml, listaAvisosHtml, moldeEmail, type Email } from "./notificar";
 import { PLANOS, temRecurso, type PlanoId } from "./planos";
 import { alvoRepricing, custosDoProduto, menorRival, precoMinimo } from "./margem";
@@ -25,6 +25,7 @@ interface Linha {
   id: string;
   user_id: string;
   item_id: string;
+  catalogo_id: string | null;
   titulo: string;
   vendedor: string | null;
   meu_item_id: string | null;
@@ -115,7 +116,7 @@ export async function verificarPrecos() {
   // Fila: só quem já passou da hora da próxima conferência, do mais atrasado pro menos.
   const { data, error } = await sb
     .from("concorrentes")
-    .select(`id,user_id,item_id,titulo,vendedor,meu_item_id,preco_atual,ultima_verificacao,sem_estoque,regra_queda_pct,regra_abaixo_de,regra_so_abaixo_do_meu,profiles!inner(${PERFIL_COLUNAS})`)
+    .select(`id,user_id,item_id,catalogo_id,titulo,vendedor,meu_item_id,preco_atual,ultima_verificacao,sem_estoque,regra_queda_pct,regra_abaixo_de,regra_so_abaixo_do_meu,profiles!inner(${PERFIL_COLUNAS})`)
     .eq("ativo", true)
     .lte("proxima_verificacao", new Date().toISOString())
     .order("proxima_verificacao", { ascending: true })
@@ -128,6 +129,8 @@ export async function verificarPrecos() {
 
   let verificados = 0;
   let avisos = 0;
+  // Vendedores de cada catálogo, lidos uma vez por rodada
+  const catalogos: CacheCatalogo = new Map();
   // Produtos do vendedor cujos concorrentes foram conferidos agora (candidatos ao ajuste automático).
   const tocados = new Map<string, { perfil: PerfilAviso; produtos: Set<string> }>();
 
@@ -151,7 +154,7 @@ export async function verificarPrecos() {
 
     for (const c of lista) {
       if (Date.now() > prazo) break;
-      const leitura = await lerAnuncio(c.item_id, acesso.token);
+      const leitura = await lerAnuncio(c.item_id, c.catalogo_id, acesso.token, catalogos);
       const preco = leitura.preco;
       verificados++;
       const p = c.profiles;

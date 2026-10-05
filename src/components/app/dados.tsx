@@ -28,7 +28,7 @@ interface Store extends Estado {
   demo: boolean;
   carregando: boolean;
   limiteConcorrentes: number;
-  adicionarConcorrente: (link: string, meuItemId: string | null) => Promise<Resultado>;
+  adicionarConcorrente: (link: string, meuItemId: string | null, catalogoId?: string | null) => Promise<Resultado>;
   removerConcorrente: (id: string) => Promise<void>;
   marcarAlertasLidos: () => Promise<void>;
   atualizarPerfil: (p: Partial<Pick<Perfil, CamposPerfil>>) => Promise<void>;
@@ -155,11 +155,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
 
   const limiteConcorrentes = PLANOS[estado.perfil?.plano ?? "gratis"].limiteConcorrentes;
 
-  const adicionarConcorrente = useCallback(async (link: string, meuItemId: string | null): Promise<Resultado> => {
+  const adicionarConcorrente = useCallback(async (link: string, meuItemId: string | null, catalogoId?: string | null): Promise<Resultado> => {
     if (emDemo.current) {
       await espera(900);
       const m = link.match(/MLB-?(\d{6,})/i);
-      if (!m) return { ok: false, erro: "Não encontrei o código do anúncio nesse link. Copie o endereço da página do produto no Mercado Livre." };
+      if (!m) return { ok: false, erro: "Não encontrei o código do produto nesse link. Copie o endereço da página do produto no Mercado Livre." };
       const itemId = `MLB${m[1]}`;
       const e = atual.current;
       if (e.concorrentes.length >= PLANOS[e.perfil?.plano ?? "gratis"].limiteConcorrentes) {
@@ -179,7 +179,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch("/api/concorrentes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ link, meuItemId }),
+      body: JSON.stringify({ link, meuItemId, catalogoId }),
     });
     const corpo = await res.json();
     if (res.status === 402) return { ok: false, erro: "limite", limite: true };
