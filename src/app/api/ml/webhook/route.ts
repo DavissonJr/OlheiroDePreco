@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { buscarItem, buscarPedido, mapearPedido, tokenValido } from "@/lib/ml";
+import { buscarItem, buscarPedido, mapearPedido, STATUS_MANTIDOS, tokenValido } from "@/lib/ml";
 
 // O Mercado Livre avisa aqui quando entra um pedido ou muda um anúncio.
 // Configure esta URL em "Notificações" na sua aplicação do ML,
@@ -31,7 +31,16 @@ export async function POST(req: Request) {
     if (n.topic === "items" || n.topic === "items_prices") {
       const id = n.resource.match(/MLB\d+/)?.[0];
       if (!id) return;
-      const item = await buscarItem(id, acesso.token);
+      // Excluído (o ML responde 404) ou encerrado: sai do painel.
+      // Outros erros (instabilidade, limite de chamadas) não apagam nada.
+      const item = await buscarItem(id, acesso.token).catch((e: Error) => {
+        if (/\((404|410)\)/.test(e.message)) return null;
+        throw e;
+      });
+      if (!item || !STATUS_MANTIDOS.includes(item.status ?? "")) {
+        await sb.from("produtos").delete().eq("id", id).eq("user_id", conta.user_id);
+        return;
+      }
       await sb.from("produtos").update({
         titulo: item.titulo,
         preco: item.preco,

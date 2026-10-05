@@ -110,7 +110,12 @@ export interface ItemML {
   vendedorId: number | null;
   estoque: number | null;
   catalogoId: string | null;
+  status: string | null;
 }
+
+// Anúncios que continuam no painel. Encerrados e excluídos saem; pausados ficam,
+// pra não perder custos e ajuste automático se o vendedor reativar.
+export const STATUS_MANTIDOS = ["active", "paused"];
 
 interface ItemBruto {
   id: string;
@@ -134,6 +139,7 @@ function mapearItem(b: ItemBruto): ItemML {
     vendedorId: b.seller_id ?? null,
     estoque: b.available_quantity ?? null,
     catalogoId: b.catalog_product_id ?? null,
+    status: b.status ?? null,
   };
 }
 
@@ -240,7 +246,7 @@ export async function buscarParecidos(
 
 export async function buscarItem(itemId: string, token: string): Promise<ItemML> {
   const bruto = await mlGet<ItemBruto>(
-    `/items/${itemId}?attributes=id,title,price,thumbnail,permalink,seller_id,available_quantity,catalog_product_id`,
+    `/items/${itemId}?attributes=id,title,price,thumbnail,permalink,seller_id,available_quantity,catalog_product_id,status`,
     token,
   );
   const item = mapearItem(bruto);
@@ -267,13 +273,16 @@ export async function apelidoVendedor(sellerId: number | null, token: string) {
 }
 
 export async function meusItens(mlUserId: number, token: string): Promise<ItemML[]> {
-  const busca = await mlGet<{ results: string[] }>(`/users/${mlUserId}/items/search?status=active&limit=100`, token);
-  const ids = busca.results ?? [];
+  const ids: string[] = [];
+  for (const status of STATUS_MANTIDOS) {
+    const busca = await mlGet<{ results: string[] }>(`/users/${mlUserId}/items/search?status=${status}&limit=100`, token);
+    ids.push(...(busca.results ?? []));
+  }
   const itens: ItemML[] = [];
   for (let i = 0; i < ids.length; i += 20) {
     const lote = ids.slice(i, i + 20).join(",");
     const r = await mlGet<{ code: number; body: ItemBruto }[]>(
-      `/items?ids=${lote}&attributes=id,title,price,thumbnail,permalink,available_quantity,catalog_product_id`,
+      `/items?ids=${lote}&attributes=id,title,price,thumbnail,permalink,available_quantity,catalog_product_id,status`,
       token,
     );
     for (const x of r) if (x.code === 200) itens.push(mapearItem(x.body));
@@ -349,6 +358,10 @@ export async function sincronizarConta(userId: string) {
       })),
     );
   }
+  // Tira do painel o que foi encerrado ou excluído no Mercado Livre.
+  // Concorrentes ligados a ele ficam, só sem o produto seu ligado.
+  const remover = sb.from("produtos").delete().eq("user_id", userId);
+  await (itens.length ? remover.not("id", "in", `(${itens.map((i) => i.id).join(",")})`) : remover);
 
   const desde = new Date(Date.now() - 90 * 86400000);
   const pedidos = await pedidosDesde(acesso.mlUserId, acesso.token, desde);
