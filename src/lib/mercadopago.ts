@@ -21,7 +21,9 @@ export async function criarAssinatura(userId: string, email: string, plano: Plan
     body: JSON.stringify({
       reason: motivo(plano, ciclo),
       external_reference: userId,
-      payer_email: email,
+      // Com credenciais de teste, o pagador também tem que ser um usuário de teste do Mercado Pago.
+      // MP_EMAIL_PAGADOR_TESTE troca o e-mail do usuário pelo do comprador de teste; apague em produção.
+      payer_email: process.env.MP_EMAIL_PAGADOR_TESTE || email,
       back_url: `${urlDoSite()}/painel/planos?assinatura=ok`,
       auto_recurring: {
         frequency: ciclo === "anual" ? 12 : 1,

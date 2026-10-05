@@ -261,8 +261,10 @@ A resposta deve ter `"ok":true`. Opcional, no BotFather: `/setuserpic` com
 2. Comece com o **Access Token de teste** em `MP_ACCESS_TOKEN`.
 3. Em **Webhooks**, cadastre `https://SEU-DOMINIO/api/mercadopago/webhook`
    com o evento de **planos e assinaturas**.
-4. Faça uma assinatura com as contas de teste do Mercado Pago.
-5. Funcionou? Troque pelo **Access Token de produção**.
+4. Faça uma assinatura com as contas de teste do Mercado Pago. Com o token do
+   vendedor de teste, cadastre também `MP_EMAIL_PAGADOR_TESTE` com o e-mail do
+   comprador de teste (o Mercado Pago não aceita pagador real com vendedor de teste).
+5. Funcionou? Troque pelo **Access Token de produção** e apague `MP_EMAIL_PAGADOR_TESTE`.
 
 ## Etapa 10: Agendador de preços
 
