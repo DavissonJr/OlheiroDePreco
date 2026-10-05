@@ -79,7 +79,7 @@ export default function Onboarding() {
   return (
     <div className="flex min-h-dvh flex-col px-5 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-10 sm:px-8">
       <div className="mx-auto flex w-full max-w-xl items-center justify-between">
-        <Logo tamanho="sm" curto />
+        <Logo tamanho="sm" />
         <span className="text-sm text-muted num">
           Etapa {etapa + 1} de {ETAPAS.length}
         </span>

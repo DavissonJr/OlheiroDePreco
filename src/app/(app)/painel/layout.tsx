@@ -23,7 +23,7 @@ export default function LayoutPainel({ children }: { children: React.ReactNode }
         )}
         <header className="flex items-center justify-between px-5 pt-4 lg:hidden">
           <Link href="/painel" aria-label="Visão geral">
-            <Logo tamanho="sm" curto />
+            <Logo tamanho="sm" />
           </Link>
         </header>
         {/* Entrada suave a cada troca de página (resposta ao toque na navegação) */}
