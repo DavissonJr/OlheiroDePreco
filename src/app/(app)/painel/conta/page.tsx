@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Bell, ChevronRight, Download, ExternalLink, Gem, LogOut, RefreshCw, Trash2 } from "lucide-react";
+import { Bell, ChevronRight, Download, ExternalLink, FileSpreadsheet, Gem, LogOut, RefreshCw, Trash2 } from "lucide-react";
 import { useDados } from "@/components/app/dados";
 import { Cabecalho } from "@/components/app/cabecalho";
 import { Botao } from "@/components/ui/botao";
@@ -13,6 +13,7 @@ import { MARKETPLACES, type Marketplace } from "@/lib/types";
 import { PLANOS } from "@/lib/planos";
 import { hrefConectarML } from "@/lib/demo";
 import { Gaveta } from "@/components/ui/gaveta";
+import { exportarHistorico, exportarVendas } from "@/lib/exportar";
 
 interface EventoInstalar extends Event {
   prompt: () => Promise<void>;
@@ -21,7 +22,7 @@ interface EventoInstalar extends Event {
 
 export default function Conta() {
   const avisar = useAviso();
-  const { carregando, perfil, atualizarPerfil, sincronizar, sair, excluirConta, demo } = useDados();
+  const { carregando, perfil, atualizarPerfil, sincronizar, sair, excluirConta, demo, vendas, concorrentes, historicos, produtos } = useDados();
   const [excluindo, setExcluindo] = useState(false);
   const [nome, setNome] = useState("");
   const [sincronizando, setSincronizando] = useState(false);
@@ -121,7 +122,7 @@ export default function Conta() {
 
         <section className={secao}>
           <h2 className="text-lg font-bold">Onde você vende</h2>
-          <p className="mt-1 text-sm text-muted">Usamos isso pra decidir a próxima integração.</p>
+          <p className="mt-1 text-sm text-muted">Por enquanto o Olheiro funciona só com o Mercado Livre. Marque os outros que você usa: é assim que decidimos a próxima integração.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {MARKETPLACES.map((m) => {
               const ativo = perfil.marketplaces.includes(m.id);
@@ -144,10 +145,33 @@ export default function Conta() {
           </div>
         </section>
 
+        <section className={secao}>
+          <h2 className="text-lg font-bold">Exportar pra planilha</h2>
+          <p className="mt-1 text-sm text-muted">Arquivos CSV que abrem direto no Excel ou no Google Planilhas.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Botao
+              variante="secundario"
+              icone={<FileSpreadsheet className="size-4" aria-hidden />}
+              disabled={!vendas.length}
+              onClick={() => exportarVendas(vendas)}
+            >
+              Vendas (90 dias)
+            </Botao>
+            <Botao
+              variante="secundario"
+              icone={<FileSpreadsheet className="size-4" aria-hidden />}
+              disabled={!concorrentes.length}
+              onClick={() => exportarHistorico(concorrentes, historicos, produtos)}
+            >
+              Histórico de preços
+            </Botao>
+          </div>
+        </section>
+
         <section className={clsx(caixa, "overflow-hidden")}>
           {[
             { href: "/painel/planos", icone: Gem, titulo: "Plano", sub: PLANOS[perfil.plano].nome },
-            { href: "/painel/alertas", icone: Bell, titulo: "Avisos", sub: "Telegram e e-mail" },
+            { href: "/painel/alertas", icone: Bell, titulo: "Avisos", sub: "Telegram, e-mail e resumo semanal" },
           ].map((l) => (
             <Link key={l.href} href={l.href} className="flex items-center gap-4 border-b border-line px-5 py-4 last:border-b-0 hover:bg-surface-2 sm:px-6">
               <l.icone className="size-5 text-muted" aria-hidden />
